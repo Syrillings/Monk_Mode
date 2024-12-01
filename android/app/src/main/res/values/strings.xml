@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Monk Mode</string>
+    <string name="title_activity_main">Monk Mode</string>
+    <string name="package_name">app.vercel.monkmodeone</string>
+    <string name="custom_url_scheme">app.vercel.monkmodeone</string>
+</resources>
