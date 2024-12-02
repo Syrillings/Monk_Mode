@@ -2,13 +2,19 @@
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import logo from '/src/assets/Images/newmonk.png'
+import { getAuth, onAuthStateChanged } from 'firebase/auth';
 
 const router = useRouter();
-onMounted(() => {
-
+const auth = getAuth();
+onAuthStateChanged(auth, (user) => {
+  
   setTimeout(() => {
-    router.push('/signup'); 
-  }, 1500);
+    if (user) {
+      router.push('/main'); 
+    } else {
+      router.push('/signup'); 
+    }
+  }, 2000); 
 });
 </script>
 

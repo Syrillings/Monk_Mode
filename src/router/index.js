@@ -1,6 +1,6 @@
-import { createRouter, createWebHistory } from 'vue-router'
-import HomeView from '../views/HomeView.vue'
-import authGuard from '/src/auth.js'
+import { createRouter, createWebHistory } from 'vue-router';
+import HomeView from '../views/HomeView.vue';
+import { getAuth } from 'firebase/auth';
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -13,17 +13,20 @@ const router = createRouter({
     {
       path: '/signup',
       name: 'signup',
-            component: () => import('../views/signup.vue')
+            component: () => import('../views/signup.vue'),
+            meta: { requiresAuth: false },
     },
     {
       path: '/main',
       name: 'mainpage',
       component: () => import('../views/mainpage.vue'),
+      meta: { requiresAuth: true },
          },
     {
       path: '/createaccount',
       name: 'createaccount',
-      component: () => import('../views/createaccount.vue')
+      component: () => import('../views/createaccount.vue'),
+      meta: { requiresAuth: false },
     },
     {
       path: '/errorconnecting',
@@ -32,5 +35,14 @@ const router = createRouter({
     }
    ]
 })
+router.beforeEach((to, from, next) => {
+  const auth = getAuth();
+  const user = auth.currentUser;
 
+  if (to.meta.requiresAuth && !user) {
+    next('/signup'); 
+  } else {
+    next(); 
+  }
+});
 export default router
