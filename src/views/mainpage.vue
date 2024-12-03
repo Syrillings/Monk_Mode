@@ -40,7 +40,8 @@ onMounted(() => {
     </div>
 <stats/>
 
-<Footer />
+
+
 
     
   </template>

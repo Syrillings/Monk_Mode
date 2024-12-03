@@ -31,7 +31,7 @@ onMounted(() => {
 
 <template>
   <div>
-    <section class="bg-bine p-[50px] mt-5 text-center rounded-[20px]">
+    <section class="bg-bine p-[50px] mt-[150px] text-center rounded-[20px]">
       <h2 class="text-3xl font-medium font-playfair mb-4">"{{ title }} "</h2>
       <p class="text-md font-georgia text-black">- {{ author }} -</p>
       <p v-if="error">Error fetching quote: {{ error }}</p>

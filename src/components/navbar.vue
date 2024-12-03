@@ -70,8 +70,9 @@ const triggerFileInput = () => {
 };
 </script>
 
-<template>
-  <nav class="bg-tine z-10 sticky mt-[-5px] p-3 flex justify-between items-center">
+
+  <template>
+  <nav class="bg-tine z-10 fixed top-0 left-0 w-full p-3 mt-9 flex justify-between items-center">
     <div class="flex items-center ml-[20]">
       <img :src="logo8" class="h-50 w-20 mb-3">
       <h1 class="text-white font-bold text-2xl font-josefin">Hello, {{ userDisplayName }}</h1>
@@ -93,5 +94,6 @@ const triggerFileInput = () => {
     </div>
   </nav>
 </template>
+
 
 
