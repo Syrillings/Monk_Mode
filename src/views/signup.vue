@@ -92,7 +92,7 @@ const handleGoogleSignIn = async (event) => {
           v-if="!isStillLoading" 
            class=
            "hover:scale-95 transition-transform duration-200 sm:pl-5  ">
-            <img v-bind:src="logo1" class="pl-[90px]  h-13 mt-[-10] sm:mt-0.5 mr-5 w-43.25">
+            <img v-bind:src="logo1" class="pl-[70px]  h-13 mt-[-10] sm:mt-0.5 mr-5 w-43.25">
           </button>
           <div v-else class="flex items-center justify-center w-full h-10 rounded-full bg-mine">
     <div class="animate-spin rounded-full h-10 w-10 border-t-2 border-tine"></div>
@@ -147,7 +147,7 @@ const handleGoogleSignIn = async (event) => {
 </div>
         </form>
 
-        <p class="pl-[26px] mb-[10px] mt-2">  Don't have an account? <RouterLink to="/createaccount" class="text-tine font-bold hover:underline">Create One Here</RouterLink>
+        <p class="pl-[16px] mb-[10px] mt-2">  Don't have an account? <RouterLink to="/createaccount" class="text-tine font-bold hover:underline">Create One Here</RouterLink>
         </p>
          
 

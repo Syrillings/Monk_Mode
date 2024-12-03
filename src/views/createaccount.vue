@@ -3,7 +3,7 @@ import logo5 from '/src/assets/Images/createaccount.png'
 import logo3 from '/src/assets/Images/at .png'
 import logo4 from '/src/assets/Images/padlock.png'
 import logo6 from '/src/assets/Images/user.png'
-import logo8 from '/src/assets/Images/uppermonk.png'
+import logo8 from '/nonk.png'
 import { useRouter } from 'vue-router';
 import { ref } from 'vue';
 import { auth, createUserWithEmailAndPassword } from '../firebase';  // Adjust the path if necessary
@@ -62,11 +62,11 @@ const handleEmailSignUp = async (event) => {
      <div class="h-screen bg-mine flex items-center justify-center pt-10 lg:pl-18">
        
         <div class="bg-mine  shadow-lg rounded-xl p-6 sm:p-8 max-w-sm sm:max-w-md w-full">
-            <div class="ml-4  pb-5">
-            <img v-bind:src="logo8" class="h-20 ">
+            <div class="ml-[116px]  pb-5">
+            <img v-bind:src="logo8" class="h-[100px] ">
         </div>
     <h1 class="font-openSans font-bold text-center text-2xl sm:text-3xl mb-2">Create Account</h1>
-    <p class="text-center text-tine font-roboto text-sm mt-6 mb-6 sm:text-base">Let's Begin Your Journey! 🚀</p>
+    <p class="text-center text-tine font-roboto text-sm mt-6 mb-6 pl-[20px] sm:text-base">Let's Begin Your Journey! 🚀</p>
 
    
 <div class="flex items-center mb-6 w-full">
@@ -105,10 +105,10 @@ const handleEmailSignUp = async (event) => {
 
           </div>
 
-          <div class="flex justify-center">
+          <div class="pl-[30px]">
             <button type="submit" 
              v-if="!isLoading"
-            class="hover:scale-95 transition-transform duration-200 pl-4">
+            class="hover:scale-95 transition-transform duration-200 pl-5">
               <img v-bind:src="logo5" class="h-10 mt-1 mb-2">
             </button>
 
@@ -117,7 +117,7 @@ const handleEmailSignUp = async (event) => {
   </div>
               </div>
         </form>
-        <div class="pl-[42px]"> <p class="pt-[-5] ml-[2] mb-[5px] mt-[10px] ">  Already Have an account? <RouterLink to="/signup" class="text-tine font-bold hover:underline">Sign In Here</RouterLink></p></div>
+        <div class="pl-[22px]"> <p class="pt-[-5]  mb-[5px] mt-[10px] ">Already Have an account? <RouterLink to="/signup" class="text-tine font-bold hover:underline">Sign In Here</RouterLink></p></div>
         </div>
       
         </div>
