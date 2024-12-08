@@ -29,6 +29,12 @@ const router = createRouter({
       meta: { requiresAuth: false },
     },
     {
+      path: '/goals',
+      name: 'goalpage',
+      component: () => import('../views/goalpage.vue'),
+      meta: { requiresAuth: false },
+    },
+    {
       path: '/errorconnecting',
       name: 'interneterror',
       component: () => import('../components/interneterror.vue')

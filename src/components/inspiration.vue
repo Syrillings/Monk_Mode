@@ -12,9 +12,8 @@ const fetchQuote = async () => {
 
   
     const randomQuote = data[Math.floor(Math.random() * data.length)];
-    title.value = randomQuote.quote; // Assuming "text" is the property for quote content
-    author.value = randomQuote.author; // Assuming "author" is the property for author name
-
+    title.value = randomQuote.quote; 
+    author.value = randomQuote.author; 
     console.log('Fetched quote:', title.value, author.value);
   } catch (error) {
     console.error('Error fetching quotes:', error);

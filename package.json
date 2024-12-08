@@ -14,7 +14,9 @@
     "@capacitor/cli": "^6.1.2",
     "@capacitor/core": "^6.1.2",
     "@capacitor/ios": "^6.1.2",
+    "@tensorflow/tfjs": "^4.22.0",
     "firebase": "^10.14.1",
+    "natural": "^8.0.1",
     "pinia": "^2.2.4",
     "vue": "^3.5.12",
     "vue-cal": "^4.10.0",
@@ -22,6 +24,7 @@
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^5.1.4",
+    "@vue/cli-service": "5.0.8",
     "autoprefixer": "^10.4.20",
     "postcss": "^8.4.47",
     "tailwindcss": "^3.4.14",
