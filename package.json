@@ -14,6 +14,7 @@
     "@capacitor/cli": "^6.1.2",
     "@capacitor/core": "^6.1.2",
     "@capacitor/ios": "^6.1.2",
+    "@firebase/firestore": "^4.7.5",
     "@tensorflow/tfjs": "^4.22.0",
     "firebase": "^10.14.1",
     "natural": "^8.0.1",

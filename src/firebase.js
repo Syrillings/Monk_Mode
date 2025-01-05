@@ -26,6 +26,7 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
+const firestore = getFirestore(app); // Initialize Firestore
 const realtimeDatabase = getDatabase(app);
 const storage = getStorage(app);
 
@@ -43,10 +44,10 @@ onAuthStateChanged(auth, (currentUser) => {
 
 const googleProvider = new GoogleAuthProvider();
 
-
 export {
   app,
   auth,
+  firestore, // Export Firestore
   realtimeDatabase,
   storage,
   googleProvider,
@@ -55,6 +56,5 @@ export {
   EmailAuthProvider,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
-  getFirestore,
   firebaseConfig
 };

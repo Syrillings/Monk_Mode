@@ -1,102 +1,223 @@
+<script setup>
+import { ref, onMounted, onUnmounted } from 'vue';
+import Navbar from '@/components/navbar2.vue';
+import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, updateDoc } from 'firebase/firestore';
+import { getAuth, onAuthStateChanged } from 'firebase/auth';
+
+const db = getFirestore();
+const auth = getAuth();
+
+const newTask = ref('');
+const startTime = ref('');
+const endTime = ref('');
+const tasks = ref([]);
+
+const addTask = async () => {
+  if (newTask.value && startTime.value && endTime.value) {
+    const task = {
+      name: newTask.value,
+      startTime: startTime.value,
+      endTime: endTime.value,
+      elapsedTime: 0,
+      done: false,
+    };
+    tasks.value.push(task);
+    newTask.value = '';
+    startTime.value = '';
+    endTime.value = '';
+
+    try {
+      const user = auth.currentUser;
+      if (user) {
+        await addDoc(collection(db, 'users', user.uid, 'tasks'), task);
+      }
+      localStorage.setItem('tasks', JSON.stringify(tasks.value));
+    } catch (error) {
+      console.error('Error adding task to Firestore: ', error);
+    }
+  }
+};
+
+const removeTask = async (index) => {
+  const taskToRemove = tasks.value[index];
+  tasks.value.splice(index, 1);
+
+  try {
+    const user = auth.currentUser;
+    if (user) {
+      const querySnapshot = await getDocs(collection(db, 'users', user.uid, 'tasks'));
+      querySnapshot.forEach(async (doc) => {
+        if (
+          doc.data().name === taskToRemove.name &&
+          doc.data().startTime === taskToRemove.startTime &&
+          doc.data().endTime === taskToRemove.endTime
+        ) {
+          await deleteDoc(doc.ref);
+        }
+      });
+    }
+    localStorage.setItem('tasks', JSON.stringify(tasks.value));
+  } catch (error) {
+    console.error('Error removing task from Firestore: ', error);
+  }
+};
+
+const markTaskAsDone = async (index) => {
+  const taskToMark = tasks.value[index];
+  taskToMark.done = !taskToMark.done;
+
+  try {
+    const user = auth.currentUser;
+    if (user) {
+      const querySnapshot = await getDocs(collection(db, 'users', user.uid, 'tasks'));
+      querySnapshot.forEach(async (doc) => {
+        if (
+          doc.data().name === taskToMark.name &&
+          doc.data().startTime === taskToMark.startTime &&
+          doc.data().endTime === taskToMark.endTime
+        ) {
+          await updateDoc(doc.ref, { done: taskToMark.done });
+        }
+      });
+    }
+    localStorage.setItem('tasks', JSON.stringify(tasks.value));
+  } catch (error) {
+    console.error('Error updating task in Firestore: ', error);
+  }
+};
+
+const calculateElapsedTime = (startTime, endTime) => {
+  const now = new Date();
+  const [startHour, startMinute] = startTime.split(':').map(Number);
+  const [endHour, endMinute] = endTime.split(':').map(Number);
+
+  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), startHour, startMinute);
+  const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), endHour, endMinute);
+
+  if (now < start) {
+    return 0;
+  } else if (now > end) {
+    return 100;
+  } else {
+    const totalTime = end - start;
+    const elapsedTime = now - start;
+    return Math.min((elapsedTime / totalTime) * 100, 100);
+  }
+};
+
+const updateElapsedTimes = () => {
+  tasks.value = tasks.value.map(task => ({
+    ...task,
+    elapsedTime: calculateElapsedTime(task.startTime, task.endTime),
+  }));
+};
+
+onMounted(async () => {
+  const localTasks = localStorage.getItem('tasks');
+  if (localTasks) {
+    tasks.value = JSON.parse(localTasks);
+  }
+
+  tasks.value = [];
+
+  onAuthStateChanged(auth, async (user) => {
+    if (user) {
+      const querySnapshot = await getDocs(collection(db, 'users', user.uid, 'tasks'));
+      querySnapshot.forEach((doc) => {
+        tasks.value.push(doc.data());
+      });
+    }
+  });
+
+  const interval = setInterval(updateElapsedTimes, 1000);
+
+  onUnmounted(() => {
+    clearInterval(interval);
+  });
+});
+</script>
 <template>
-    <div class="flex flex-col h-screen bg-bine">
-      <!-- Chat Messages -->
-      <div class="flex-1 overflow-y-auto p-4 space-y-4">
-        <!-- User's Input -->
-        <div
-          v-for="(message, index) in messages"
-          :key="index"
-          :class="[
-            'p-4 max-w-xs rounded-lg',
-            message.sender === 'user' ? 'bg-blue-500 text-white ml-auto' : 'bg-gray-200 text-black mr-auto'
-          ]"
-        >
-          <p>{{ message.text }}</p>
-          <!-- If AI-generated task, show allocated time -->
-          <p v-if="message.time" class="text-sm text-gray-500 mt-2">Time: {{ message.time }} hours</p>
-        </div>
-      </div>
-  
-      <!-- Input Field -->
-      <div class="p-4 bg-tine border-t">
-        <form @submit.prevent="handleMessage">
-          <div class="flex">
+  <div class="bg-mine text-white-600 pt-10 lg:pl-18 min-h-screen flex flex-col">
+    <div class="container mx-auto mt-10 pb-10">
+      <Navbar />
+    </div>
+    <div class="container mx-auto mt-10 flex-grow px-4"> 
+      <h1 class="text-2xl font-bold mb-4">To-Do List</h1>
+      <div class="bg-bine p-4 rounded-lg shadow-md">
+        <form @submit.prevent="addTask">
+          <div class="mb-4">
+            <label class="block text-gray-700 text-sm font-bold mb-2" for="task">
+              Task
+            </label>
             <input
-              v-model="userInput"
+              v-model="newTask"
+              class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+              id="task"
               type="text"
-              placeholder="Describe how you want your day to go..."
-              class="flex-1 p-2 border rounded-lg"
+              placeholder="Enter your task"
             />
-            <button
-              type="submit"
-              class="ml-2 p-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
-            >
-              Send
-            </button>
+          </div>
+          <div class="mb-4">
+            <label class="block text-gray-700 text-sm font-bold mb-2" for="startTime">
+              Start Time
+            </label>
+            <input
+              v-model="startTime"
+              class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+              id="startTime"
+              type="time"
+            />
+          </div>
+          <div class="mb-4">
+            <label class="block text-gray-700 text-sm font-bold mb-2" for="endTime">
+              End Time
+            </label>
+            <input
+              v-model="endTime"
+              class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+              id="endTime"
+              type="time"
+            />
+          </div>
+          <div class="flex items-center justify-between">
+            <button class="bg-tine text-white py-2 px-4 mt-4 rounded-lg" type="submit">Add Task</button>
           </div>
         </form>
       </div>
+
+      <div class="mt-6">
+        <h2 class="text-xl font-bold mb-4">Tasks</h2>
+        <ul>
+          <li
+            v-for="(task, index) in tasks"
+            :key="index"
+            class="relative bg-white p-4 rounded-lg shadow-md mb-6"
+          >
+            <button
+              @click="removeTask(index)"
+              class="absolute top-1.5 right-6 text-red-500 hover:text-red-700 font-bold text-3xl"
+            >
+              &times;
+            </button>
+            <h4 class="font-semibold text-lg">{{ task.name }}</h4>
+            <span>
+              <p class="font-bold text-tine text-sm">Allotted Time: {{ task.startTime }} - {{ task.endTime }}</p>
+              <div class="flex items-center text-sm">
+                <p class="mr-[170px] mt-[-3]">Elapsed Time: {{ task.elapsedTime.toFixed(2) }}%</p>
+                <label class="inline-flex items-center ml-2">
+                  <input type="checkbox" @change="markTaskAsDone(index)" class="form-checkbox h-5 w-5 text-tine">
+                </label>
+              </div>
+            </span>
+            <div class="bg-gray-300 w-full rounded-full h-4 mt-2">
+              <div
+                class="bg-tine h-4 rounded-full"
+                :style="{ width: task.elapsedTime + '%' }"
+              ></div>
+            </div>
+          </li>
+        </ul>
+      </div>
     </div>
-  </template>
-  
-  <script setup>
-  import { ref, onMounted } from 'vue';
-  import { auth, onAuthStateChanged } from '../firebase';
-
-  const userDisplayName = ref('');
-  const messages = ref([
-    { sender: 'bot', text: `Hi, ${userDisplayName.value}! Describe how you want your day to go, and I’ll create a to-do list for you.` }
-  ]);
-
-  onMounted(() => {
-    onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser) {
-        const displayName = firebaseUser.displayName;
-        const firstName = displayName.split(' ')[0];
-        userDisplayName.value = firstName;
-        }
-    });
-  });
-
-
-
-
-  
-  // User input
-  const userInput = ref('');
-  
-  // Handle sending a message
-  const handleMessage = async () => {
-    if (!userInput.value.trim()) return;
-  
-    // Add user's message to chat
-    messages.value.push({ sender: 'user', text: userInput.value });
-  
-    // Simulate AI response
-    const tasks = await generateTasks(userInput.value); // Replace with TensorFlow.js AI function
-  
-    // Add AI-generated tasks to chat
-    tasks.forEach(task => {
-      messages.value.push({
-        sender: 'bot',
-        text: task.task,
-        time: task.time
-      });
-    });
-  
-    // Clear input
-    userInput.value = '';
-  };
-  
-  // Simulated AI task generator (replace this with your AI model)
-  const generateTasks = async (description) => {
-    return [
-      { task: 'Morning workout', time: 1 },
-      { task: 'Read a book', time: 2 },
-      { task: 'Meditation', time: 0.5 }
-    ]; // Mock data
-  };
-  </script>
-  
- 
-  
+  </div>
+</template>
