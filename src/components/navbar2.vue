@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted } from 'vue';
-import { auth, onAuthStateChanged, storage, realtimeDatabase } from '../firebase'; // Ensure your Firebase setup includes Realtime Database
+import { auth, onAuthStateChanged, storage, realtimeDatabase } from '../firebase';
 import logo6 from '/src/assets/Images/navuser.png';
 import logo8 from '/src/assets/Images/newmonk.png';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -17,6 +17,7 @@ const loadProfilePicture = async () => {
     const snapshot = await get(profilePicRef);
     if (snapshot.exists()) {
       profilePicture.value = snapshot.val();
+      console.log("Snapshot Saved")
     }
   }
 };
@@ -25,6 +26,7 @@ onMounted(() => {
   onAuthStateChanged(auth, async (firebaseUser) => {
     if (firebaseUser) {
       const displayName = firebaseUser.displayName;
+      console.log(firebaseUser.displayName)
       const firstName = displayName.split(' ')[0];
       userDisplayName.value = firstName;
       await loadProfilePicture();

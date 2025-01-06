@@ -142,12 +142,12 @@ onMounted(async () => {
       <Navbar />
     </div>
     <div class="container mx-auto mt-10 flex-grow px-4"> 
-      <h1 class="text-2xl font-bold mb-4">To-Do List</h1>
+    
       <div class="bg-bine p-4 rounded-lg shadow-md">
         <form @submit.prevent="addTask">
           <div class="mb-4">
             <label class="block text-gray-700 text-sm font-bold mb-2" for="task">
-              Task
+            
             </label>
             <input
               v-model="newTask"
@@ -159,7 +159,7 @@ onMounted(async () => {
           </div>
           <div class="mb-4">
             <label class="block text-gray-700 text-sm font-bold mb-2" for="startTime">
-              Start Time
+              Start at:
             </label>
             <input
               v-model="startTime"
@@ -186,7 +186,7 @@ onMounted(async () => {
       </div>
 
       <div class="mt-6">
-        <h2 class="text-xl font-bold mb-4">Tasks</h2>
+        
         <ul>
           <li
             v-for="(task, index) in tasks"
@@ -204,8 +204,8 @@ onMounted(async () => {
               <p class="font-bold text-tine text-sm">Allotted Time: {{ task.startTime }} - {{ task.endTime }}</p>
               <div class="flex items-center text-sm">
                 <p class="mr-[170px] mt-[-3]">Elapsed Time: {{ task.elapsedTime.toFixed(2) }}%</p>
-                <label class="inline-flex items-center ml-2">
-                  <input type="checkbox" @change="markTaskAsDone(index)" class="form-checkbox h-5 w-5 text-tine">
+                <label class="inline-flex items-center ml-2 ">
+                  <input type="checkbox" @change="markTaskAsDone(index)" class="form-checkbox h-5 mb-1 w-5 text-tine">
                 </label>
               </div>
             </span>
