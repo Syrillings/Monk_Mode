@@ -7,7 +7,7 @@ import { auth, onAuthStateChanged } from '../firebase';  // Make sure the path i
 import logo8 from '/src/assets/Images/newmonk.png'
 import inspiration from '@/components/inspiration.vue';
 import navbar from '@/components/navbar.vue';
-import Footer from '@/components/footer.vue';
+import Bottom from '@/components/bottom.vue'
 import stats from '@/components/stats.vue';
 import calendar from '@/components/calendar.vue';
 import goalcard from '@/components/goalcard.vue';
@@ -29,21 +29,12 @@ onMounted(() => {
 
 <template>
 <div class=" bg-mine text-white-600  pt-10 lg:pl-18">
-  
-   
-  <navbar/>
-   
-  <inspiration/>
-  
- <goalcard/>
-
-    </div>
+<navbar/> 
+<inspiration/>
+<goalcard/>
+</div>
 <stats/>
-
-
-
-
-    
+  <Bottom/>
   </template>
 
        

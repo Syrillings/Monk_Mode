@@ -101,7 +101,7 @@ const calculateElapsedTime = (startTime, endTime) => {
   } else {
     const totalTime = end - start;
     const elapsedTime = now - start;
-    return Math.min((elapsedTime / totalTime) * 100, 100);
+    return Math.round((elapsedTime / totalTime) * 100, 100);
   }
 };
 
@@ -159,7 +159,7 @@ onMounted(async () => {
           </div>
           <div class="mb-4">
             <label class="block text-gray-700 text-sm font-bold mb-2" for="startTime">
-              Start at:
+              Starts at:
             </label>
             <input
               v-model="startTime"
@@ -188,35 +188,37 @@ onMounted(async () => {
       <div class="mt-6">
         
         <ul>
-          <li
-            v-for="(task, index) in tasks"
-            :key="index"
-            class="relative bg-white p-4 rounded-lg shadow-md mb-6"
-          >
-            <button
-              @click="removeTask(index)"
-              class="absolute top-1.5 right-6 text-red-500 hover:text-red-700 font-bold text-3xl"
-            >
-              &times;
-            </button>
-            <h4 class="font-semibold text-lg">{{ task.name }}</h4>
-            <span>
-              <p class="font-bold text-tine text-sm">Allotted Time: {{ task.startTime }} - {{ task.endTime }}</p>
-              <div class="flex items-center text-sm">
-                <p class="mr-[170px] mt-[-3]">Elapsed Time: {{ task.elapsedTime.toFixed(2) }}%</p>
-                <label class="inline-flex items-center ml-2 ">
-                  <input type="checkbox" @change="markTaskAsDone(index)" class="form-checkbox h-5 mb-1 w-5 text-tine">
-                </label>
-              </div>
-            </span>
-            <div class="bg-gray-300 w-full rounded-full h-4 mt-2">
-              <div
-                class="bg-tine h-4 rounded-full"
-                :style="{ width: task.elapsedTime + '%' }"
-              ></div>
-            </div>
-          </li>
-        </ul>
+  <li
+    v-for="(task, index) in tasks"
+    :key="index"
+    class="relative bg-white p-4 rounded-lg shadow-md mb-6"
+  >
+    <div class="flex justify-between items-center">
+      <h4 class="font-semibold text-lg">{{ task.name }}</h4>
+      <button
+        @click="removeTask(index)"
+        class="text-red-500 hover:text-red-700 font-bold text-3xl"
+      >
+        &times;
+      </button>
+    </div>
+    <span>
+      <p class="font-bold text-tine text-sm">Allotted Time: {{ task.startTime }} - {{ task.endTime }}</p>
+      <div class="flex justify-between items-center text-sm">
+        <p>Elapsed Time: {{ task.elapsedTime.toFixed(0) }}%</p>
+        <label class="inline-flex items-center">
+          <input type="checkbox" @change="markTaskAsDone(index)" class="form-checkbox h-5 w-5 text-tine">
+        </label>
+      </div>
+    </span>
+    <div class="bg-gray-300 w-full rounded-full h-4 mt-2">
+      <div
+        class="bg-tine h-4 rounded-full"
+        :style="{ width: task.elapsedTime + '%' }"
+      ></div>
+    </div>
+  </li>
+</ul>
       </div>
     </div>
   </div>

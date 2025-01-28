@@ -16,6 +16,14 @@ import { RouterLink, RouterView } from 'vue-router'
   </header>
 
   <RouterView />
+ 
 </template>
+
+<style>
+.parent-container {
+  background-color: #EAC4D5;
+}
+
+</style>
 
 
