@@ -1,4 +1,4 @@
-# monk_mode
+# Monk_Mode
 
 This template should help get you started developing with Vue 3 in Vite.
 
@@ -16,7 +16,12 @@ See [Vite Configuration Reference](https://vite.dev/config/).
 npm install
 ```
 
-### Compile and Hot-Reload for Development
+### To run in Android emulator
+
+```sh
+npx cap run android
+```
+### To test on web
 
 ```sh
 npm run dev
