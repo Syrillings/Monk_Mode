@@ -7,6 +7,30 @@
 @tailwind components;
 @tailwind utilities;
 
+@font-face {
+  font-family: 'Josefin Sans';
+  src: url('/src/assets/Fonts/JosefinSans/static/Inter_24pt-LightItalic.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Italianno';
+  src: url('/src/assets/Fonts/Italianno/Italianno-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+}
+
+
+
+.font-josefin {
+  font-family: 'Josefin Sans', sans-serif;
+}
+
+.font-italianno {
+  font-family: 'Italianno', cursive;
+}
+
 body {
     background-color: #d9b2d1; 
   }

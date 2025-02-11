@@ -1,27 +1,293 @@
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue';
+import Bottom from '/src/components/bottom.vue';
+import { ref, onMounted, onUnmounted, watch, computed, nextTick  } from 'vue';
 import Navbar from '@/components/navbar2.vue';
-import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, updateDoc } from 'firebase/firestore';
+import { getFirestore, collection, doc, addDoc, getDocs, deleteDoc, updateDoc, query, orderBy } from 'firebase/firestore';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
+import { state } from '../state';
+import Draggable from 'vuedraggable';
+import Microphone from '/microphone.png';
+import AI from '/AI.png';
+import Text from '/text.png';
+import { generateAIResponse } from "/src/Utils/GeminiAPI";
+import { SpeechRecognition } from "@capacitor-community/speech-recognition";
 
 const db = getFirestore();
 const auth = getAuth();
-
+const aiText = ref(""); 
 const newTask = ref('');
 const startTime = ref('');
 const endTime = ref('');
-const tasks = ref([]);
+const isModalOpen = ref(false);
+const isAnimating = ref(false);
+const issAnimating = ref(false);
+
+const userInput = ref(""); 
+const isRecording = ref(false);
+const isProcessing = ref(false);
+let recognition = null;
+
+const isNative = () => {
+  return window.Capacitor && window.Capacitor.isNativePlatform();
+};
+
+const toggleRecording = async () => {
+  if (isProcessing.value) return;
+
+  if (!isRecording.value) {
+    // Start recording
+    if (isNative()) {
+      await useCapacitorSpeechRecognition();
+    } else {
+      await useWebSpeechAPI();
+    }
+  } else {
+    // Stop recording
+    isRecording.value = false;
+    isProcessing.value = true; // Show spinner while generating task
+
+    await nextTick(); // ✅ Ensure UI updates and shows "Processing..."
+
+    // 🔥 Wait until userInput is populated (max 5 seconds)
+    const waitForUserInput = async () => {
+      let retries = 0;
+      while (!userInput.value?.trim() && retries < 50) { // 50 x 100ms = 5 seconds
+        await new Promise(resolve => setTimeout(resolve, 100));
+        retries++;
+      }
+    };
+
+    await waitForUserInput(); // Ensure we have user input
+
+    if (!userInput.value?.trim()) {
+      console.error("User input is empty. Cannot generate tasks.");
+      isProcessing.value = false;
+      return; // Exit early if there's no valid input
+    }
+
+    try {
+      await generatePlan(userInput.value); // 🔥 Wait for AI response
+      isProcessing.value = false; // ✅ Hide processing state
+      isModalOpen.value = false; // ✅ Close modal AFTER tasks are generated
+    } catch (error) {
+      console.error("Error generating plan:", error);
+      isProcessing.value = false;
+    }
+  }
+};
+
+const useCapacitorSpeechRecognition = async () => {
+  if (!isRecording.value) {
+    const hasPermission = await SpeechRecognition.hasPermission();
+    if (!hasPermission.value) {
+      await SpeechRecognition.requestPermission();
+    }
+
+    isRecording.value = true;
+
+    SpeechRecognition.start({
+      language: "en-US",
+      maxResults: 3,  
+      partialResults: true, 
+      popup: false,
+    });
+
+    SpeechRecognition.addListener("partialResults", (data) => {
+      if (data.matches && data.matches.length > 0) {
+        userInput.value = data.matches[0]; 
+      }
+    });
+
+    SpeechRecognition.addListener("end", () => {
+      isRecording.value = false;
+      if (userInput.value.trim()) {
+        generatePlan(userInput.value); 
+      }
+    });
+  } else {
+    await SpeechRecognition.stop();
+    isRecording.value = false;
+    if (userInput.value.trim()) {
+      generatePlan(userInput.value);
+    }
+  }
+};
+
+
+const useWebSpeechAPI = async () => {
+  if (!isRecording.value) {
+    if (!recognition) {
+      recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+      recognition.continuous = true; // Keep listening until stopped
+      recognition.interimResults = true; // Show partial results
+      recognition.lang = "en-US";
+
+      recognition.onresult = (event) => {
+        let finalTranscript = "";
+        for (let i = 0; i < event.results.length; i++) {
+          let transcript = event.results[i][0].transcript;
+          if (event.results[i].isFinal) {
+            finalTranscript += transcript + " "; // Add only finalized words
+          }
+        }
+        userInput.value = finalTranscript.trim();
+      };
+
+      recognition.onerror = (event) => {
+        console.error("Speech Recognition Error:", event.error);
+      };
+
+      recognition.onend = () => {
+        isRecording.value = false;
+        if (userInput.value.trim()) {
+          generatePlan(userInput.value); 
+        }
+      };
+    }
+
+    isRecording.value = true;
+    recognition.start();
+  } else {
+    recognition.stop();
+    isRecording.value = false;
+  }
+};
+
+const generatePlan = async (aiText) => {
+  try {
+    if (typeof aiText !== "string" || !aiText.trim()) {
+      console.warn("User input is empty. Cannot generate tasks.");
+      return;
+    }
+
+    const user = auth.currentUser;
+    if (!user) {
+      console.warn("User is not authenticated. Cannot save AI tasks.");
+      return;
+    }
+
+    const now = new Date();
+    let currentTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours(), now.getMinutes());
+
+    const aiTasks = await generateAIResponse(aiText); // Get AI-generated tasks
+
+    if (aiTasks && Array.isArray(aiTasks)) {
+      const newTasks = aiTasks.map((task, index) => {
+        let duration = task.duration ? task.duration * 60 * 1000 : estimateDuration(task.name);
+        let start = new Date(currentTime);
+        let end = new Date(start.getTime() + duration);
+
+        currentTime = new Date(end); // Move to the next available time slot
+
+        return {
+          name: task.name,
+          startTime: start.toISOString(),
+          endTime: end.toISOString(),
+          elapsedTime: 0,
+          done: false,
+          isFrozen: false,
+          fromAI: true,
+          order: index, // ✅ Preserve AI-generated order
+        };
+      });
+
+      state.tasks.push(...newTasks);
+
+      await Promise.all(
+        newTasks.map(async (task) => {
+          const docRef = await addDoc(collection(db, "users", user.uid, "tasks"), task);
+          task.id = docRef.id; 
+        })
+      );
+
+      console.log("AI-generated tasks saved to Firebase in order!");
+    }
+  } catch (error) {
+    console.error("Error generating AI tasks: ", error);
+  }
+};
+
+const animateButton = () => {
+  isAnimating.value = true;
+  setTimeout(() => {
+    isAnimating.value = false;
+  }, 250); 
+};
+const sanimateButton = () => {
+  issAnimating.value = true;
+  setTimeout(() => {
+    issAnimating.value = false;
+  }, 250); 
+};
+
+const startTimeFormatted = (task) => computed(() =>
+  new Date(task.startTime).toISOString().substring(11, 16) // HH:MM format
+);
+
+const endTimeFormatted = (task) => computed(() =>
+  new Date(task.endTime).toISOString().substring(11, 16)
+);
+
+
+onMounted(async () => {
+  const localTasks = localStorage.getItem("tasks");
+  if (localTasks) {
+    state.tasks = JSON.parse(localTasks);
+  }
+
+  // Prevent duplicate tasks from Firestore
+  onAuthStateChanged(auth, async (user) => {
+    if (user) {
+      const querySnapshot = await getDocs(collection(db, "users", user.uid, "tasks"));
+
+      // Create a Set to store existing task IDs
+      const existingTaskIds = new Set(state.tasks.map(task => task.id));
+
+      querySnapshot.forEach((doc) => {
+        if (!existingTaskIds.has(doc.id)) {
+          state.tasks.unshift({ id: doc.id, ...doc.data() });
+        }
+      });
+
+      localStorage.setItem("tasks", JSON.stringify(state.tasks)); 
+    }
+  });
+
+  // Update elapsed time every second
+  const interval = setInterval(() => {
+    updateElapsedTimes();
+  }, 1000);
+
+  fetchTasks();
+
+  onUnmounted(() => {
+    clearInterval(interval);
+  });
+});
+
+
+watch(state.tasks, (newTasks) => {
+  localStorage.setItem('tasks', JSON.stringify(newTasks));
+}, { deep: true });
 
 const addTask = async () => {
   if (newTask.value && startTime.value && endTime.value) {
+    const now = new Date();
+    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), ...startTime.value.split(':').map(Number));
+    const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), ...endTime.value.split(':').map(Number));
+    if (end < start) {
+      end.setDate(end.getDate() + 1); // Handle tasks that span across midnight
+    }
+
     const task = {
       name: newTask.value,
-      startTime: startTime.value,
-      endTime: endTime.value,
+      startTime: start.toISOString(),
+      endTime: end.toISOString(),
       elapsedTime: 0,
       done: false,
+      isFrozen: false,
     };
-    tasks.value.push(task);
+    state.tasks.push(task);
     newTask.value = '';
     startTime.value = '';
     endTime.value = '';
@@ -29,58 +295,195 @@ const addTask = async () => {
     try {
       const user = auth.currentUser;
       if (user) {
-        await addDoc(collection(db, 'users', user.uid, 'tasks'), task);
+        const docRef = await addDoc(collection(db, 'users', user.uid, 'tasks'), task);
+        task.id = docRef.id; // Store Firestore doc ID
       }
-      localStorage.setItem('tasks', JSON.stringify(tasks.value));
     } catch (error) {
       console.error('Error adding task to Firestore: ', error);
     }
   }
 };
 
+//This codebase is screwing my mental health.....Send help
+
+//saves the task's name when the user changes it
+const updateTaskName = (event, task) => {
+  task.name = event.target.innerText;
+  saveTaskName(task);
+};
+
+const saveTaskName = async (task) => {
+  // Save to localStorage
+  localStorage.setItem("tasks", JSON.stringify(state.tasks));
+
+  // Save to Firebase
+  if (auth.currentUser) {
+    const taskRef = doc(db, "users", auth.currentUser.uid, "tasks", task.id);
+    try {
+      await updateDoc(taskRef, { name: task.name });
+      console.log("Task updated in Firebase");
+    } catch (error) {
+      console.error("Error updating task:", error);
+    }
+  }
+};
+
+//Sends nely set time to firebase
+const updateTaskTime = async (index, type, newTime) => {
+  if (!newTime) return;
+
+  const task = state.tasks[index];
+  if (!task || !task.id) return; // Ensure task exists and has an ID
+
+  let [hours, minutes] = newTime.split(":").map(Number);
+  
+  if (type === "startTime") {
+    let newStartTime = new Date(task.startTime);
+    newStartTime.setHours(hours, minutes, 0, 0);
+    task.startTime = newStartTime.toISOString();
+    task.editingStartTime = false;
+  } else if (type === "endTime") {
+    let newEndTime = new Date(task.endTime);
+    newEndTime.setHours(hours, minutes, 0, 0);
+    task.endTime = newEndTime.toISOString();
+    task.editingEndTime = false;
+  }
+
+  // Ensure Vue detects changes
+  state.tasks = [...state.tasks];
+
+  try {
+    await updateDoc(doc(db, "users", auth.currentUser.uid, "tasks", task.id), {
+      startTime: task.startTime,
+      endTime: task.endTime,
+    });
+    console.log("✅ Task time updated in Firestore:", task);
+  } catch (error) {
+    console.error("❌ Error updating task time in Firestore:", error);
+  }
+};
+
+
+const saveTaskToFirestore = async (taskId, updatedFields) => {
+  try {
+    const user = auth.currentUser;
+    if (!user) {
+      console.error("User not authenticated.");
+      return;
+    }
+
+    const taskRef = doc(db, "users", user.uid, "tasks", taskId);
+    await updateDoc(taskRef, updatedFields);
+    console.log("✅ Task updated successfully in Firestore:", updatedFields);
+  } catch (error) {
+    console.error("❌ Error updating task in Firestore:", error);
+  }
+};
+
+const fetchTasks = async () => {
+  try {
+    const user = auth.currentUser;
+    if (!user) return;
+
+    // ✅ Fetch tasks in correct order
+    const tasksQuery = query(collection(db, "users", user.uid, "tasks"), orderBy("order", "asc"));
+    const querySnapshot = await getDocs(tasksQuery);
+
+    // ✅ Avoid duplicates by replacing state.tasks instead of pushing
+    state.tasks = querySnapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+
+    // ✅ Store only the fresh tasks in localStorage
+    localStorage.setItem("tasks", JSON.stringify(state.tasks));
+
+    console.log("✅ Tasks loaded from Firestore in correct order!", state.tasks);
+  } catch (error) {
+    console.error("❌ Error fetching tasks:", error);
+  }
+};
+
+
+
+const estimateDuration = (taskName) => {
+  const defaultDurations = {
+    "study": 180 * 60 * 1000,
+    "workout": 60 * 60 * 1000,
+    "meeting": 45 * 60 * 1000,
+  };
+  return defaultDurations[taskName.toLowerCase()] || 90 * 60 * 1000; 
+};
+
+const loadTasks = async () => {
+  try {
+    const user = auth.currentUser;
+    if (!user) {
+      console.warn("User is not authenticated. Cannot load tasks.");
+      return;
+    }
+
+    const querySnapshot = await getDocs(collection(db, "users", user.uid, "tasks"));
+
+    // Convert Firebase documents to task objects
+    state.tasks = querySnapshot.docs.map(doc => ({
+      id: doc.id, // Store Firebase document ID
+      ...doc.data()
+    }));
+
+    console.log("Tasks loaded from Firebase", state.tasks);
+  } catch (error) {
+    console.error("Error loading tasks from Firebase:", error);
+  }
+};
+
+
+// Call loadTasks() when the app starts
+loadTasks();
+
+onAuthStateChanged(auth, async (user) => {
+  if (user) {
+    await loadTasks();
+    localStorage.setItem('tasks', JSON.stringify(state.tasks));
+  }
+});
+
 const removeTask = async (index) => {
-  const taskToRemove = tasks.value[index];
-  tasks.value.splice(index, 1);
+  const taskToRemove = state.tasks[index];
+  if (!taskToRemove) return;
 
   try {
     const user = auth.currentUser;
-    if (user) {
-      const querySnapshot = await getDocs(collection(db, 'users', user.uid, 'tasks'));
-      querySnapshot.forEach(async (doc) => {
-        if (
-          doc.data().name === taskToRemove.name &&
-          doc.data().startTime === taskToRemove.startTime &&
-          doc.data().endTime === taskToRemove.endTime
-        ) {
-          await deleteDoc(doc.ref);
-        }
-      });
+    if (user && taskToRemove.id) {
+      await deleteDoc(doc(db, "users", user.uid, "tasks", taskToRemove.id));
+      console.log("Task deleted from Firestore:", taskToRemove.id);
     }
-    localStorage.setItem('tasks', JSON.stringify(tasks.value));
+
+    // Make a new array to trigger reactivity
+    state.tasks = state.tasks.filter((_, i) => i !== index);
+
+    // Force Vue to update local state & storage
+    localStorage.setItem("tasks", JSON.stringify(state.tasks));
+    
+    console.log("Task removed from UI and localStorage.");
   } catch (error) {
-    console.error('Error removing task from Firestore: ', error);
+    console.error("Error removing task from Firestore:", error);
   }
 };
 
 const markTaskAsDone = async (index) => {
-  const taskToMark = tasks.value[index];
-  taskToMark.done = !taskToMark.done;
+  const task = state.tasks[index];
+  task.done = !task.done;
+  task.isFading = task.done;
+  task.isFrozen = task.done;
+  task.hideCheckbox = task.done;
+  task.elapsedTime = task.done ? 100 : calculateElapsedTime(task.startTime, task.endTime);
 
   try {
     const user = auth.currentUser;
-    if (user) {
-      const querySnapshot = await getDocs(collection(db, 'users', user.uid, 'tasks'));
-      querySnapshot.forEach(async (doc) => {
-        if (
-          doc.data().name === taskToMark.name &&
-          doc.data().startTime === taskToMark.startTime &&
-          doc.data().endTime === taskToMark.endTime
-        ) {
-          await updateDoc(doc.ref, { done: taskToMark.done });
-        }
-      });
+    if (user && task.id) {
+      await updateDoc(doc(db, 'users', user.uid, 'tasks', task.id), task);
     }
-    localStorage.setItem('tasks', JSON.stringify(tasks.value));
   } catch (error) {
     console.error('Error updating task in Firestore: ', error);
   }
@@ -88,66 +491,63 @@ const markTaskAsDone = async (index) => {
 
 const calculateElapsedTime = (startTime, endTime) => {
   const now = new Date();
-  const [startHour, startMinute] = startTime.split(':').map(Number);
-  const [endHour, endMinute] = endTime.split(':').map(Number);
+  let start = new Date(startTime);
+  let end = new Date(endTime);
 
-  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), startHour, startMinute);
-  const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), endHour, endMinute);
-
-  if (now < start) {
-    return 0;
-  } else if (now > end) {
-    return 100;
-  } else {
-    const totalTime = end - start;
-    const elapsedTime = now - start;
-    return Math.round((elapsedTime / totalTime) * 100, 100);
-  }
+  if (end < start) end.setDate(end.getDate() + 1);
+  if (now < start) return 0;
+  if (now > end) return 100;
+  
+  return Math.round(((now - start) / (end - start)) * 100);
 };
 
 const updateElapsedTimes = () => {
-  tasks.value = tasks.value.map(task => ({
-    ...task,
-    elapsedTime: calculateElapsedTime(task.startTime, task.endTime),
-  }));
-};
+  state.tasks.forEach((task, index) => {
+    if (task.done || task.isFrozen) return; 
 
-onMounted(async () => {
-  const localTasks = localStorage.getItem('tasks');
-  if (localTasks) {
-    tasks.value = JSON.parse(localTasks);
-  }
-
-  tasks.value = [];
-
-  onAuthStateChanged(auth, async (user) => {
-    if (user) {
-      const querySnapshot = await getDocs(collection(db, 'users', user.uid, 'tasks'));
-      querySnapshot.forEach((doc) => {
-        tasks.value.push(doc.data());
-      });
+    const elapsed = calculateElapsedTime(task.startTime, task.endTime);
+  
+    if (elapsed >= 100) {
+      markTaskAsDone(index);
+    } else {
+      task.elapsedTime = elapsed;
     }
   });
 
-  const interval = setInterval(updateElapsedTimes, 1000);
+  state.tasks = [...state.tasks]; // Trigger reactivity
+};
 
-  onUnmounted(() => {
-    clearInterval(interval);
-  });
-});
+const isLoading = ref(false);
+
+const handleClick = async () => {
+  if (!aiText.value.trim()) return; // Prevent empty input
+
+  sanimateButton();
+  isLoading.value = true; // Start loading spinner
+
+  try {
+    await generatePlan(aiText.value); // Wait for AI response
+    isModalOpen.value = false; // ✅ Close modal when tasks are generated
+  } catch (error) {
+    console.error("Error generating plan:", error);
+  } finally {
+    isLoading.value = false; // Stop spinner
+  }
+};
+
 </script>
+
+
 <template>
   <div class="bg-mine text-white-600 pt-10 lg:pl-18 min-h-screen flex flex-col">
     <div class="container mx-auto mt-10 pb-10">
       <Navbar />
     </div>
     <div class="container mx-auto mt-10 flex-grow px-4"> 
-    
       <div class="bg-bine p-4 rounded-lg shadow-md">
         <form @submit.prevent="addTask">
           <div class="mb-4">
             <label class="block text-gray-700 text-sm font-bold mb-2" for="task">
-            
             </label>
             <input
               v-model="newTask"
@@ -181,45 +581,182 @@ onMounted(async () => {
           </div>
           <div class="flex items-center justify-between">
             <button class="bg-tine text-white py-2 px-4 mt-4 rounded-lg" type="submit">Add Task</button>
+               <div class="flex items-center justify-between">
+                <button @click="() => { animateButton(); isModalOpen = true; }"
+    :class="{ 'scale-125': isAnimating }"
+    class="transition-transform duration-500 ease-in-out"
+    ><img v-bind:src="AI" class="w-[60px] mt-1 mr-3">
+  </button>
+          </div>
           </div>
         </form>
       </div>
 
-      <div class="mt-6">
-        
-        <ul>
-  <li
-    v-for="(task, index) in tasks"
-    :key="index"
-    class="relative bg-white p-4 rounded-lg shadow-md mb-6"
-  >
-    <div class="flex justify-between items-center">
-      <h4 class="font-semibold text-lg">{{ task.name }}</h4>
-      <button
-        @click="removeTask(index)"
-        class="text-red-500 hover:text-red-700 font-bold text-3xl"
-      >
+      <div class="mt-6 overflow-y-auto max-h-[70vh] pb-24">
+        <draggable 
+  v-model="state.tasks" 
+  item-key="id"
+  animation="300"
+  class="space-y-4"
+  handle=".drag-handle"
+>
+  <template #item="{ element, index }">
+    <li
+      class="relative bg-white p-4 rounded-lg shadow-md mb-6 transition-colors duration-500"
+    >
+      <!-- Drag Handle -->
+      <span class="drag-handle cursor-move mr-3 text-gray-500">☰</span>
+
+      <div class="flex justify-between items-center">
+      <h4 
+  class="font-semibold text-lg" 
+  v-if="!element.fromAI"
+>
+  {{ element.name }}
+</h4>
+
+<h4 
+  class="font-semibold text-lg p-1 rounded focus:outline-none" 
+  v-else 
+  contenteditable="true"
+  @keydown.enter.prevent
+  @input="updateTaskName($event, element)"
+>
+  {{ element.name }}
+</h4>
+
+        <button
+          @click="removeTask(index)"
+          class="text-red-500 hover:text-red-700 font-bold text-3xl"
+        >
+          &times;
+        </button>
+      </div>
+
+      <span>
+        <p class="font-bold text-sm" :class="element.isFading ? 'text-gray-500' : 'text-tine'">
+          Allotted Time: 
+<!-- START TIME -->
+<span 
+  v-if="!element.fromAI || !element.editingStartTime" 
+  @click="element.fromAI ? (element.editingStartTime = true) : null"
+  class="cursor-pointer"
+>
+  {{ new Date(element.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }}
+</span>
+<input
+  v-if="element.fromAI && element.editingStartTime"
+  type="time"
+  :value="startTimeFormatted(element).value" 
+  @input="(e) => element.startTimeTemp = e.target.value"
+  @blur="updateTaskTime(index, 'startTime', element.startTimeTemp)"
+  @keydown.enter="updateTaskTime(index, 'startTime', element.startTimeTemp)"
+  class="shadow border rounded w-20 py-1 px-2 text-gray-700"
+  autofocus
+/>
+
+<span> - </span>
+
+<!-- END TIME -->
+<span 
+  v-if="!element.fromAI || !element.editingEndTime" 
+  @click="element.fromAI ? (element.editingEndTime = true) : null"
+  class="cursor-pointer"
+>
+  {{ new Date(element.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }}
+</span>
+<input
+  v-if="element.fromAI && element.editingEndTime"
+  type="time"
+  :value="endTimeFormatted(element).value" 
+  @input="(e) => element.endTimeTemp = e.target.value"
+  @blur="updateTaskTime(index, 'endTime', element.endTimeTemp)"
+  @keydown.enter="updateTaskTime(index, 'endTime', element.endTimeTemp)"
+  class="shadow border rounded w-20 py-1 px-2 text-gray-700"
+  autofocus
+/>
+
+
+
+        </p>
+        <div class="flex justify-between items-center text-sm">
+          <p :class="{ 'text-black': element.isFading, 'text-black': !element.isFading }">
+            Elapsed Time: {{ element.elapsedTime.toFixed(0) }}%
+          </p>
+          <label v-if="!element.done" class="inline-flex items-center">
+            <input type="checkbox" @change="markTaskAsDone(index)" class="form-checkbox h-5 w-5 text-tine">
+          </label>
+        </div>
+      </span>
+
+      <div class="bg-gray-200 w-full rounded-full h-4 mt-2">
+        <div
+          :class="element.isFading ? 'bg-gray-500' : 'bg-tine'"
+          class="h-4 rounded-full transition-colors duration-500"
+          :style="{ width: element.elapsedTime + '%' }"
+        ></div>
+      </div>
+    </li>
+  </template>
+</draggable>
+      </div>
+    </div>
+  <div v-if="isModalOpen" class="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
+    <div class="bg-bine p-8 rounded-2xl shadow-lg w-96 relative overflow-hidden">  <button
+        @click="isModalOpen = false"
+        class="absolute top-4 right-4 text-red-500 hover:text-red-700 font-bold text-3xl transition-colors duration-300"  >
         &times;
       </button>
-    </div>
-    <span>
-      <p class="font-bold text-tine text-sm">Allotted Time: {{ task.startTime }} - {{ task.endTime }}</p>
-      <div class="flex justify-between items-center text-sm">
-        <p>Elapsed Time: {{ task.elapsedTime.toFixed(0) }}%</p>
-        <label class="inline-flex items-center">
-          <input type="checkbox" @change="markTaskAsDone(index)" class="form-checkbox h-5 w-5 text-tine">
-        </label>
-      </div>
-    </span>
-    <div class="bg-gray-300 w-full rounded-full h-4 mt-2">
-      <div
-        class="bg-tine h-4 rounded-full"
-        :style="{ width: task.elapsedTime + '%' }"
-      ></div>
-    </div>
-  </li>
-</ul>
-      </div>
+
+      <h2 class="text-2xl font-bold mb-4 text-center text-tine">Plan Your Day</h2>  
+      <textarea v-model="aiText" class="w-full h-[250px] p-3 border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-tine transition duration-300"></textarea>  <div class="flex justify-center mt-6 space-x-4">  
+        <button
+  @click="toggleRecording"
+  :class="{
+    'scale-110 bg-red-500': isRecording,
+    'bg-tine hover:bg-tine-700': !isRecording
+  }"
+  class="transition-transform duration-300 ease-in-out text-white font-medium py-2 px-4 rounded-lg focus:outline-none focus:ring-2 focus:ring-tine-300 flex items-center"
+>
+  <!-- STATE 1: Default (Before Recording) -->
+  <template v-if="!isRecording && !isProcessing">
+    <img :src="Microphone" class="w-[30px] mr-2 inline-block" />
+    <span class="inline-block">Voice</span>
+  </template>
+
+  <!-- STATE 2: Recording -->
+  <template v-else-if="isRecording">
+    <img :src="Microphone" class="w-[30px] mr-2 inline-block" />
+    <span class="inline-block">Recording...</span>
+  </template>
+
+  <!-- STATE 3: Processing -->
+  <template v-else-if="isProcessing">
+    <div class="animate-spin rounded-full h-6 w-6 border-t-2 border-bine"></div>
+    <span class="inline-block ml-2">Processing...</span>
+  </template>
+</button>
+
+        <button 
+  @click="handleClick" 
+  :class="{ 'scale-110': issAnimating }"
+  class="transition-transform duration-300 ease-in-out bg-tine hover:bg-tine-700 text-white font-medium py-2 px-4 rounded-lg focus:outline-none focus:ring-2 focus:ring-tine-300 flex items-center justify-center w-24 h-12 relative"
+>
+  <template v-if="isLoading">
+    <div class="animate-spin rounded-full h-6 w-6 border-t-2 border-bine"></div>
+  </template>
+  <template v-else>
+    <img :src="Text" class="w-[30px] mr-2 inline-block"> 
+    <span class="inline-block">Send</span>
+  </template>
+</button>
+
+
+          </div>
+
     </div>
   </div>
+  </div>
+  <Bottom/>
 </template>
+

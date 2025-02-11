@@ -1,5 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router';
-import { getAuth, onAuthStateChanged } from 'firebase/auth';
+import { getAuth } from 'firebase/auth';
 import HomeView from '../views/HomeView.vue';
 
 const router = createRouter({
@@ -34,6 +34,11 @@ const router = createRouter({
       component: () => import('../views/goalpage.vue'),
     },
     {
+      path: '/user',
+      name: 'UserProfile',
+      component: () => import('../views/userprofile.vue'),
+    },
+    {
       path: '/errorconnecting',
       name: 'interneterror',
       component: () => import('../components/interneterror.vue'),
@@ -43,21 +48,15 @@ const router = createRouter({
 
 router.beforeEach((to, from, next) => {
   const auth = getAuth();
+  const user = auth.currentUser;
 
-  onAuthStateChanged(auth, (user) => {
-    if (to.meta.requiresAuth) {
-      if (user) {
-        next();
-      } else {
-        next('/signup');
-      }
-    } else if (to.name === 'signup' && user) {
-      next('/main');
-    } else {
-      next();
-    }
-  });
+  if (to.meta.requiresAuth && !user) {
+    next('/signup');
+  } else if (to.name === 'signup' && user) {
+    next('/main');
+  } else {
+    next();
+  }
 });
-
 
 export default router;

@@ -4,9 +4,9 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        josefin: ["Josefin Sans", "sans-serif"],
-        italianno: ["Italianno", "cursive"],
+     
         monty: ["Montserrat", "sans-serif"],
+        josefin: ["Josefin Sans", "sans-serif"],
         openSans: ["Open Sans", "sans-serif"],
         roboto: ["Roboto", "sans-serif"],
         playfair: ['Playfair', 'serif'],

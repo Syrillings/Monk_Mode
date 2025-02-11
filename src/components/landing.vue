@@ -9,12 +9,12 @@ const auth = getAuth();
 onAuthStateChanged(auth, (user) => {
   
   setTimeout(() => {
-    if (user) {
-      router.push('/main'); 
-    } else {
-      router.push('/signup'); 
-    }
-  }, 2000); 
+  if (user) {
+    router.push('/main'); 
+  } else {
+    router.push('/signup'); 
+  }
+}, 2000); 
 });
 </script>
 

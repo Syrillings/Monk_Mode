@@ -108,7 +108,7 @@ const handleEmailSignUp = async (event) => {
           <div class="pl-[30px]">
             <button type="submit" 
              v-if="!isLoading"
-            class="hover:scale-95 transition-transform duration-200 pl-5">
+            class="hover:scale-95 transition-transform duration-200 pl-6">
               <img v-bind:src="logo5" class="h-10 mt-1 mb-2">
             </button>
 

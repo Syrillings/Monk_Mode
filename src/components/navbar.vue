@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted } from 'vue';
-import { auth, onAuthStateChanged, storage, realtimeDatabase } from '../firebase'; // Ensure your Firebase setup includes Realtime Database
+import { auth, onAuthStateChanged, storage, realtimeDatabase } from '../firebase'; 
 import logo6 from '/src/assets/Images/navuser.png';
 import logo8 from '/src/assets/Images/newmonk.png';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -10,13 +10,22 @@ const userDisplayName = ref('');
 const profilePicture = ref(logo6); 
 const fileInput = ref(null);
 
+const loadProfilePictureFromLocalStorage = () => {
+  const savedProfilePicture = localStorage.getItem('profilePicture');
+  if (savedProfilePicture) {
+    profilePicture.value = savedProfilePicture;
+  }
+};
+
 const loadProfilePicture = async () => {
   const user = auth.currentUser;
   if (user) {
     const profilePicRef = dbRef(realtimeDatabase, `users/${user.uid}/profileImageUrl`);
     const snapshot = await get(profilePicRef);
     if (snapshot.exists()) {
-      profilePicture.value = snapshot.val();
+      const profileImageUrl = snapshot.val();
+      profilePicture.value = profileImageUrl;
+       localStorage.setItem('profilePicture', profileImageUrl);
     }
   }
 };
@@ -27,6 +36,8 @@ onMounted(() => {
       const displayName = firebaseUser.displayName;
       const firstName = displayName.split(' ')[0];
       userDisplayName.value = firstName;
+      
+      loadProfilePictureFromLocalStorage();
       await loadProfilePicture();
     } else {
       userDisplayName.value = '';
@@ -53,7 +64,7 @@ const onFileChange = async (event) => {
       const downloadURL = await getDownloadURL(storageReference);
       profilePicture.value = downloadURL; // Update with uploaded picture URL
       console.log(downloadURL);
-
+     localStorage.setItem('profilePicture', downloadURL);
 
       const profilePicRef = dbRef(realtimeDatabase, `users/${auth.currentUser.uid}/profileImageUrl`);
       await set(profilePicRef, downloadURL);
@@ -69,6 +80,7 @@ const triggerFileInput = () => {
   }
 };
 </script>
+
 
 
   <template>

@@ -10,6 +10,7 @@
     "host": "vite dev --host"
   },
   "dependencies": {
+    "@capacitor-community/speech-recognition": "^6.0.1",
     "@capacitor/android": "^6.1.2",
     "@capacitor/cli": "^6.1.2",
     "@capacitor/core": "^6.1.2",
@@ -17,12 +18,19 @@
     "@firebase/firestore": "^4.7.5",
     "@heroicons/vue": "^2.2.0",
     "@tensorflow/tfjs": "^4.22.0",
+    "axios": "^1.7.9",
+    "dotenv": "^16.4.7",
     "firebase": "^10.14.1",
+    "firebase-tools": "^13.30.0",
+    "lucide-vue-next": "^0.475.0",
     "natural": "^8.0.1",
     "pinia": "^2.2.4",
+    "together-ai": "^0.13.0",
+    "vercel": "^41.0.2",
     "vue": "^3.5.12",
     "vue-cal": "^4.10.0",
-    "vue-router": "^4.4.5"
+    "vue-router": "^4.4.5",
+    "vuedraggable": "^4.1.0"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^5.1.4",
