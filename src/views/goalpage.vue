@@ -11,6 +11,8 @@ import AI from '/AI.png';
 import Text from '/text.png';
 import { generateAIResponse } from "/src/Utils/GeminiAPI";
 import { SpeechRecognition } from "@capacitor-community/speech-recognition";
+import { LocalNotifications } from '@capacitor/local-notifications';
+//import { Alert } from '@capacitor/dialog';
 
 const db = getFirestore();
 const auth = getAuth();
@@ -26,6 +28,57 @@ const userInput = ref("");
 const isRecording = ref(false);
 const isProcessing = ref(false);
 let recognition = null;
+
+const scheduleNotification = async (task) => {
+  const endTime = new Date(task.endTime);
+  const notificationTime = new Date(endTime.getTime() - 1 * 60 * 1000);
+  const now = new Date();
+
+  if (notificationTime > now) {
+    await LocalNotifications.schedule({
+      notifications: [
+        {
+          id: Number(task.id.replace(/\D/g, "").slice(-6)),
+          title: `⏳ Task Ending Soon!`,
+          body: `You have 1 minute left before "${task.name}". Ends at ${endTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}.`,
+          schedule: { at: notificationTime },
+          sound: 'default',
+          smallIcon: 'notification',
+          largeIcon: 'notification',
+          importance: 5, // 🔥 Maximum priority to show pop-up
+          vibrate: [200, 100, 200], // Adds vibration for better visibility
+          foreground: true, 
+        },
+      ],
+    });
+
+    console.log(`🔔 Notification scheduled for task "${task.name}" at ${notificationTime}`);
+  } else {
+    console.log(`⏩ Skipped notification for task "${task.name}" because it's too close to current time.`);
+  }
+};
+
+LocalNotifications.addListener('localNotificationReceived', async (notification) => {
+  console.log('📲 Notification received:', notification);
+
+  // 🔹 Force another system notification
+  await LocalNotifications.schedule({
+    notifications: [
+      {
+        id: notification.id + 1000, // Avoid duplicate IDs
+        title: notification.title,
+        body: notification.body,
+        sound: 'default',
+        smallIcon: 'notification',
+        largeIcon: 'notification',
+        importance: 5,
+        vibrate: [200, 100, 200],
+      },
+    ],
+  });
+});
+
+
 
 const isNative = () => {
   return window.Capacitor && window.Capacitor.isNativePlatform();
@@ -66,9 +119,9 @@ const toggleRecording = async () => {
     }
 
     try {
-      await generatePlan(userInput.value); // 🔥 Wait for AI response
-      isProcessing.value = false; // ✅ Hide processing state
-      isModalOpen.value = false; // ✅ Close modal AFTER tasks are generated
+      await generatePlan(userInput.value); //  Wait for AI response
+      isProcessing.value = false; //  Hide processing state
+      isModalOpen.value = false; //  Close modal AFTER tasks are generated
     } catch (error) {
       console.error("Error generating plan:", error);
       isProcessing.value = false;
@@ -77,41 +130,71 @@ const toggleRecording = async () => {
 };
 
 const useCapacitorSpeechRecognition = async () => {
+  console.log("🔊 Calling useCapacitorSpeechRecognition...");
+
   if (!isRecording.value) {
-    const hasPermission = await SpeechRecognition.hasPermission();
-    if (!hasPermission.value) {
-      await SpeechRecognition.requestPermission();
-    }
-
-    isRecording.value = true;
-
-    SpeechRecognition.start({
-      language: "en-US",
-      maxResults: 3,  
-      partialResults: true, 
-      popup: false,
-    });
-
-    SpeechRecognition.addListener("partialResults", (data) => {
-      if (data.matches && data.matches.length > 0) {
-        userInput.value = data.matches[0]; 
+    try {
+      // Handle iOS permissions ONLY
+      if (Capacitor.getPlatform() === 'ios') {
+        const hasPermission = await SpeechRecognition.hasPermission();
+        if (!hasPermission.granted) {
+          await SpeechRecognition.requestPermission();
+        }
       }
-    });
 
-    SpeechRecognition.addListener("end", () => {
+      isRecording.value = true;
+
+      await SpeechRecognition.start({
+        language: 'en-US',
+        maxResults: 3,
+        partialResults: true,
+        popup: false, // iOS specific, ignored on Android
+      });
+
+      // Optional: Clear userInput at the start
+      userInput.value = '';
+
+      // Capture partial results for a live typing feel
+      SpeechRecognition.addListener('partialResults', (data) => {
+        if (data.matches && data.matches.length > 0) {
+          userInput.value = data.matches[0];
+        }
+      });
+
+      // Final results handler
+      SpeechRecognition.addListener('result', (data) => {
+        console.log('Final Result:', data);
+        if (data.matches && data.matches.length > 0) {
+          userInput.value = data.matches[0];
+          generatePlan(userInput.value);
+        }
+        isRecording.value = false;
+      });
+
+      // Error handling
+      SpeechRecognition.addListener('error', (error) => {
+        console.error('SpeechRecognition Error:', error);
+        isRecording.value = false;
+      });
+
+      // Listening end handler
+      SpeechRecognition.addListener('end', () => {
+        console.log('SpeechRecognition Ended');
+        isRecording.value = false;
+      });
+
+    } catch (error) {
+      console.error('SpeechRecognition Start Failed:', error);
       isRecording.value = false;
-      if (userInput.value.trim()) {
-        generatePlan(userInput.value); 
-      }
-    });
+    }
   } else {
+    // Stop Recording if already active
     await SpeechRecognition.stop();
     isRecording.value = false;
-    if (userInput.value.trim()) {
-      generatePlan(userInput.value);
-    }
+    console.log('SpeechRecognition Stopped');
   }
 };
+
 
 
 const useWebSpeechAPI = async () => {
@@ -187,11 +270,12 @@ const generatePlan = async (aiText) => {
           done: false,
           isFrozen: false,
           fromAI: true,
-          order: index, // ✅ Preserve AI-generated order
+          order: index, 
+          createdAt: Date.now(), 
         };
       });
 
-      state.tasks.push(...newTasks);
+      state.tasks.unshift(...newTasks);
 
       await Promise.all(
         newTasks.map(async (task) => {
@@ -228,43 +312,56 @@ const endTimeFormatted = (task) => computed(() =>
   new Date(task.endTime).toISOString().substring(11, 16)
 );
 
+const updateTaskOrder = async () => {
+  state.tasks.forEach((task, index) => {
+    task.order = index; // Update the order based on the new index
+  });
 
-onMounted(async () => {
-  const localTasks = localStorage.getItem("tasks");
+  // Save the new order to Firestore
+  const user = auth.currentUser;
+  if (user) {
+    const updates = state.tasks.map(task => {
+      return updateDoc(doc(db, "users", user.uid, "tasks", task.id), { order: task.order });
+    });
+    
+    await Promise.all(updates)
+      .then(() => {
+        console.log("✅ Task order updated in Firestore!");
+      })
+      .catch(error => {
+        console.error("❌ Error updating task order in Firestore:", error);
+      });
+  }
+};
+
+onMounted(() => {
+  // Load tasks from localStorage if available
+  const localTasks = localStorage.getItem('tasks');
   if (localTasks) {
     state.tasks = JSON.parse(localTasks);
   }
 
-  // Prevent duplicate tasks from Firestore
-  onAuthStateChanged(auth, async (user) => {
-    if (user) {
-      const querySnapshot = await getDocs(collection(db, "users", user.uid, "tasks"));
-
-      // Create a Set to store existing task IDs
-      const existingTaskIds = new Set(state.tasks.map(task => task.id));
-
-      querySnapshot.forEach((doc) => {
-        if (!existingTaskIds.has(doc.id)) {
-          state.tasks.unshift({ id: doc.id, ...doc.data() });
-        }
-      });
-
-      localStorage.setItem("tasks", JSON.stringify(state.tasks)); 
-    }
-  });
-
-  // Update elapsed time every second
+  // Real-time update elapsed time
   const interval = setInterval(() => {
     updateElapsedTimes();
   }, 1000);
 
-  fetchTasks();
+  // Listen for authentication state changes
+  const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
+    if (user) {
+      await fetchTasks(); // Load fresh tasks from Firestore when user logs in
+    } else {
+      state.tasks = [];
+      localStorage.removeItem('tasks'); // Clear tasks if user logs out
+    }
+  });
 
+  // Cleanup on component unmount
   onUnmounted(() => {
     clearInterval(interval);
+    unsubscribeAuth(); // Stop listening to auth changes
   });
 });
-
 
 watch(state.tasks, (newTasks) => {
   localStorage.setItem('tasks', JSON.stringify(newTasks));
@@ -273,10 +370,21 @@ watch(state.tasks, (newTasks) => {
 const addTask = async () => {
   if (newTask.value && startTime.value && endTime.value) {
     const now = new Date();
-    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), ...startTime.value.split(':').map(Number));
-    const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), ...endTime.value.split(':').map(Number));
+    const start = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate(),
+      ...startTime.value.split(":").map(Number)
+    );
+    const end = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate(),
+      ...endTime.value.split(":").map(Number)
+    );
+
     if (end < start) {
-      end.setDate(end.getDate() + 1); // Handle tasks that span across midnight
+      end.setDate(end.getDate() + 1); // Handle overnight tasks
     }
 
     const task = {
@@ -286,21 +394,41 @@ const addTask = async () => {
       elapsedTime: 0,
       done: false,
       isFrozen: false,
+      order: state.tasks.length,
+      createdAt: Date.now(),
     };
-    state.tasks.push(task);
-    newTask.value = '';
-    startTime.value = '';
-    endTime.value = '';
 
     try {
       const user = auth.currentUser;
-      if (user) {
-        const docRef = await addDoc(collection(db, 'users', user.uid, 'tasks'), task);
-        task.id = docRef.id; // Store Firestore doc ID
+      if (!user) {
+        console.error("No user signed in");
+        return;
       }
+
+      // Add to Firestore
+      const docRef = await addDoc(
+        collection(db, "users", user.uid, "tasks"),
+        task
+      );
+
+      // Assign the Firestore ID to the task object
+      task.id = docRef.id;
+
+      scheduleNotification(task);
+    
+      state.tasks.unshift(task);
+      localStorage.setItem("tasks", JSON.stringify(state.tasks));
+
+      console.log("✅ Task added successfully:", task);
+
+        newTask.value = "";
+      startTime.value = "";
+      endTime.value = "";
     } catch (error) {
-      console.error('Error adding task to Firestore: ', error);
+      console.error("❌ Error adding task:", error);
     }
+  } else {
+    console.warn("⚠️ Please fill in all fields");
   }
 };
 
@@ -357,7 +485,7 @@ const updateTaskTime = async (index, type, newTime) => {
       startTime: task.startTime,
       endTime: task.endTime,
     });
-    console.log("✅ Task time updated in Firestore:", task);
+    console.log("Task time updated in Firestore:", task);
   } catch (error) {
     console.error("❌ Error updating task time in Firestore:", error);
   }
@@ -385,26 +513,25 @@ const fetchTasks = async () => {
     const user = auth.currentUser;
     if (!user) return;
 
-    // ✅ Fetch tasks in correct order
-    const tasksQuery = query(collection(db, "users", user.uid, "tasks"), orderBy("order", "asc"));
+    const tasksQuery = query(
+      collection(db, "users", user.uid, "tasks"),
+      orderBy("createdAt", "desc") 
+    );
+
     const querySnapshot = await getDocs(tasksQuery);
 
-    // ✅ Avoid duplicates by replacing state.tasks instead of pushing
     state.tasks = querySnapshot.docs.map((doc) => ({
       id: doc.id,
       ...doc.data(),
     }));
 
-    // ✅ Store only the fresh tasks in localStorage
     localStorage.setItem("tasks", JSON.stringify(state.tasks));
 
-    console.log("✅ Tasks loaded from Firestore in correct order!", state.tasks);
+    console.log("✅ Tasks fetched and ordered by newest first!", state.tasks);
   } catch (error) {
     console.error("❌ Error fetching tasks:", error);
   }
 };
-
-
 
 const estimateDuration = (taskName) => {
   const defaultDurations = {
@@ -473,11 +600,16 @@ const removeTask = async (index) => {
 
 const markTaskAsDone = async (index) => {
   const task = state.tasks[index];
+
+  if (!task.done) {
+    // Only calculate elapsedTime when marking as done for the first time
+    task.elapsedTime = calculateElapsedTime(task.startTime, task.endTime);
+  }
+
   task.done = !task.done;
   task.isFading = task.done;
   task.isFrozen = task.done;
   task.hideCheckbox = task.done;
-  task.elapsedTime = task.done ? 100 : calculateElapsedTime(task.startTime, task.endTime);
 
   try {
     const user = auth.currentUser;
@@ -599,6 +731,7 @@ const handleClick = async () => {
   animation="300"
   class="space-y-4"
   handle=".drag-handle"
+  @end="updateTaskOrder"
 >
   <template #item="{ element, index }">
     <li
@@ -750,9 +883,7 @@ const handleClick = async () => {
     <span class="inline-block">Send</span>
   </template>
 </button>
-
-
-          </div>
+     </div>
 
     </div>
   </div>

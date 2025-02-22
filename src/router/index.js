@@ -34,7 +34,7 @@ const router = createRouter({
       component: () => import('../views/goalpage.vue'),
     },
     {
-      path: '/user',
+      path: '/main/userprofile',
       name: 'UserProfile',
       component: () => import('../views/userprofile.vue'),
     },

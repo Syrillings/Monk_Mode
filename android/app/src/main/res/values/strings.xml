@@ -2,6 +2,8 @@
 <resources>
     <string name="app_name">Monk Mode</string>
     <string name="title_activity_main">Monk Mode</string>
-    <string name="package_name">app.vercel.monkmodeone</string>
-    <string name="custom_url_scheme">app.vercel.monkmodeone</string>
+    <string name="package_name">app.vercel.monkmode</string>
+    <string name="custom_url_scheme">app.vercel.monkmode</string>
+    <string name="default_web_client_id">647279608797-ogi28j41u75uvhcpkumvnub60l071q57.apps.googleusercontent.com</string>
+
 </resources>

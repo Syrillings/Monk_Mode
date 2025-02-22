@@ -7,7 +7,7 @@ const db = getFirestore();
 
 const goalsSet = ref(0);
 const goalsCompleted = ref(0);
-const progress = ref(0);
+const goalsMissed = ref(0);
 
 const fetchStats = async () => {
   const querySnapshot = await getDocs(collection(db, 'users', 'user_id', 'tasks'));
@@ -15,13 +15,19 @@ const fetchStats = async () => {
 
   goalsSet.value = tasks.length;
   goalsCompleted.value = tasks.filter(task => task.done).length;
-  progress.value = goalsSet.value ? Math.floor((goalsCompleted.value / goalsSet.value) * 100) : 0;
+  goalsMissed.value = tasks.filter(task => {
+    const deadline = task.deadline?.toDate ? task.deadline.toDate() : new Date(task.deadline);
+    return !task.done && deadline < new Date();
+  }).length;
 };
 
 const updateStats = () => {
   goalsSet.value = state.tasks.length;
   goalsCompleted.value = state.tasks.filter(task => task.done).length;
-  progress.value = goalsSet.value ? Math.floor((goalsCompleted.value / goalsSet.value) * 100) : 0;
+  goalsMissed.value = state.tasks.filter(task => {
+    const deadline = task.deadline?.toDate ? task.deadline.toDate() : new Date(task.deadline);
+    return !task.done && deadline < new Date();
+  }).length;
 };
 
 onMounted(() => {
@@ -31,25 +37,22 @@ onMounted(() => {
 </script>
 
 <template>
-<section class="p-6 bg-rine rounded-xl">
+  <section class="p-6 bg-rine rounded-xl">
     <h3 class="text-2xl font-bold mb-4">Stats</h3>
     <div class="flex justify-around">
-        <div class="text-center">
-            <h4 class="text-3xl font-bold">{{ goalsSet }}</h4>
-            <p>Goals Set</p>
-        </div>
-        <div class="text-center">
-            <h4 class="text-3xl font-bold">{{ goalsCompleted }}</h4>
-            <p>Completed</p>
-        </div>
-        <div class="text-center">
-            <h4 class="text-3xl font-bold">{{ progress }}%</h4>
-            <p>Progress</p>
-        </div>
+      <div class="text-center">
+        <h4 class="text-3xl font-bold">{{ goalsSet }}</h4>
+        <p>Goals Set</p>
+      </div>
+      <div class="text-center">
+        <h4 class="text-3xl font-bold">{{ goalsCompleted }}</h4>
+        <p>Completed</p>
+      </div>
+      <div class="text-center">
+        <h4 class="text-3xl font-bold">{{ goalsMissed }}</h4>
+        <p>Missed</p>
+      </div>
     </div>
-</section>
+  </section>
 </template>
 
-<style scoped>
-/* Add any additional styles if needed */
-</style>

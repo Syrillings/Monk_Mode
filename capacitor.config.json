@@ -1,6 +1,20 @@
 {
-  "appId": "app.vercel.monkmodeone",
+  "appId": "app.vercel.monkmode",
   "appName": "Monk Mode",
-  "webDir": "dist"
- 
+  "webDir": "dist",
+ "plugins": {
+  "SpeechRecognition": {
+    "GoogleAuth": {
+      "scopes": ["profile", "email"],
+      "serverClientId": "647279608797-ogi28j41u75uvhcpkumvnub60l071q57.apps.googleusercontent.com", 
+      "forceCodeForRefreshToken": true
+    },
+    "android": {
+      "needPermission": true
+    }
+  },
+    "SplashScreen": {
+      "launchShowDuration": 0
+    }
+    }
 }

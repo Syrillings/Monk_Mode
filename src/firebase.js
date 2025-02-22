@@ -9,6 +9,8 @@ import {
   EmailAuthProvider,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
+  signOut,
+  
 } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
@@ -56,5 +58,7 @@ export {
   EmailAuthProvider,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
-  firebaseConfig
+  firebaseConfig,
+  signOut,
+  getAuth
 };

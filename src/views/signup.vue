@@ -1,12 +1,13 @@
 <script setup>
 import logo4 from '/src/assets/Images/padlock.png';
 import logo1 from '/src/assets/Images/set.png';
-import logo3 from '/src/assets/Images/at .png'; 
-import logo5 from '/src/assets/Images/signin.png'; 
+import logo3 from '/src/assets/Images/at .png';
+import logo5 from '/src/assets/Images/signin.png';
 import { ref, onMounted } from 'vue';
-import { sendPasswordResetEmail, onAuthStateChanged } from 'firebase/auth';
-import { auth, googleProvider, signInWithPopup, signInWithEmailAndPassword } from '/src/firebase.js';
+import { sendPasswordResetEmail, onAuthStateChanged, GoogleAuthProvider, signInWithCredential, signInWithEmailAndPassword } from 'firebase/auth';
+import { auth } from '/src/firebase.js';
 import { useRouter } from 'vue-router';
+import { GoogleAuth } from '@codetrix-studio/capacitor-google-auth';
 
 const isLoading = ref(false);
 const isStillLoading = ref(false);
@@ -16,12 +17,17 @@ const errorMessage = ref("");
 const router = useRouter();
 const text = ref("");
 
-// Set up auth state listener
 onMounted(() => {
   onAuthStateChanged(auth, (user) => {
     if (user) {
-      router.push('/main'); // Redirect to main page if user is logged in
+      router.push('/main');
     }
+  });
+
+  GoogleAuth.initialize({
+    clientId: '647279608797-ogi28j41u75uvhcpkumvnub60l071q57.apps.googleusercontent.com',
+    scopes: ['profile', 'email'],
+    grantOfflineAccess: true,
   });
 });
 
@@ -42,41 +48,34 @@ const handleClick = () => {
 const handleEmailSignIn = async (event) => {
   event.preventDefault();
   handleClick();
-  
+
   if (!email.value || !password.value) {
-    errorMessage.value = "LogIn details missing";
-    isLoading.value = false; 
+    errorMessage.value = 'LogIn details missing';
+    isLoading.value = false;
     return;
   }
 
   try {
-    const userCredential = await signInWithEmailAndPassword(auth, email.value, password.value);
-    const user = userCredential.user;
-
-    // No need to call onAuthStateChanged here, the global listener will handle it
+    await signInWithEmailAndPassword(auth, email.value, password.value);
   } catch (error) {
-    console.error("Error signing in:", error);
-    errorMessage.value = error.message; 
-    isLoading.value = false; 
+    console.error('Error signing in:', error);
+    errorMessage.value = error.message;
+    isLoading.value = false;
   }
-};
-
-const googleclick = () => {
-  isStillLoading.value = true;
 };
 
 const handleGoogleSignIn = async (event) => {
   event.preventDefault();
-  googleclick();
+  isStillLoading.value = true;
 
   try {
-    await signInWithPopup(auth, googleProvider);
-    isStillLoading.value = false;
-
-    // No need to call onAuthStateChanged here, the global listener will handle it
+    const googleUser = await GoogleAuth.signIn();
+    const credential = GoogleAuthProvider.credential(googleUser.authentication.idToken);
+    await signInWithCredential(auth, credential);
   } catch (error) {
-    console.error("Error signing in with Google: ", error.message);
-    errorMessage.value = error.message; 
+    console.error('Google Sign-In Error: ', error.message);
+    errorMessage.value = error.message;
+  } finally {
     isStillLoading.value = false;
   }
 };

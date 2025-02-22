@@ -49,7 +49,7 @@ const animateButton = (event, path) => {
 
         <!-- User Profile Icon -->
         <button
-          @click="event => animateButton(event, '/user')"
+          @click="event => animateButton(event, '/main/userprofile')"
           class="flex flex-col items-center text-white hover:text-gray-400 transition-colors duration-400"
         >
           <img

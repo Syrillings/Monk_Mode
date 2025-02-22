@@ -5,6 +5,7 @@ import logo6 from '/src/assets/Images/navuser.png';
 import logo8 from '/src/assets/Images/newmonk.png';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { ref as dbRef, set, get } from 'firebase/database';
+import Camera from '/camera.png'
 
 const userDisplayName = ref('');
 const profilePicture = ref(logo6); 
@@ -94,15 +95,20 @@ const triggerFileInput = () => {
         :src="profilePicture || logo6"
         class="w-[78px] h-[78px] rounded-full bg-gray-400 border-2 mt-[10] border-white object-cover cursor-pointer"
         alt="User Profile"
-        @click="triggerFileInput"
-      />
-      <input
-        type="file"
-        ref="fileInput"
-        @change="onFileChange"
-        accept="image/*"
-        class="hidden"
-      />
+             />
+          <input
+            type="file"
+            ref="fileInput"
+            @change="onFileChange"
+            accept="image/*"
+            class="hidden"
+          />
+          <button 
+            class="absolute bottom-1 right-1 text-white p-2 rounded-full shadow-md "
+            @click="triggerFileInput"
+          >
+            <img :src="Camera" class="w-4 h-4" alt="Edit" />
+          </button>
     </div>
   </nav>
 </template>

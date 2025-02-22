@@ -18,3 +18,5 @@ types/v3-generated.d.ts
 
 resources/android/**/*
 .vercel
+
+resources/ios/**/*
