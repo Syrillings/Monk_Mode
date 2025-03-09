@@ -45,8 +45,8 @@ const scheduleNotification = async (task) => {
           sound: 'default',
           smallIcon: 'notification',
           largeIcon: 'notification',
-          importance: 5, // 🔥 Maximum priority to show pop-up
-          vibrate: [200, 100, 200], // Adds vibration for better visibility
+          importance: 5,
+          vibrate: [200, 100, 200],
           foreground: true, 
         },
       ],
@@ -61,11 +61,11 @@ const scheduleNotification = async (task) => {
 LocalNotifications.addListener('localNotificationReceived', async (notification) => {
   console.log('📲 Notification received:', notification);
 
-  // 🔹 Force another system notification
+
   await LocalNotifications.schedule({
     notifications: [
       {
-        id: notification.id + 1000, // Avoid duplicate IDs
+        id: notification.id + 1000,
         title: notification.title,
         body: notification.body,
         sound: 'default',
@@ -97,11 +97,11 @@ const toggleRecording = async () => {
   } else {
     // Stop recording
     isRecording.value = false;
-    isProcessing.value = true; // Show spinner while generating task
+    isProcessing.value = true;
 
-    await nextTick(); // ✅ Ensure UI updates and shows "Processing..."
+    await nextTick();
 
-    // 🔥 Wait until userInput is populated (max 5 seconds)
+
     const waitForUserInput = async () => {
       let retries = 0;
       while (!userInput.value?.trim() && retries < 50) { // 50 x 100ms = 5 seconds
@@ -110,18 +110,18 @@ const toggleRecording = async () => {
       }
     };
 
-    await waitForUserInput(); // Ensure we have user input
+    await waitForUserInput();
 
     if (!userInput.value?.trim()) {
       console.error("User input is empty. Cannot generate tasks.");
       isProcessing.value = false;
-      return; // Exit early if there's no valid input
+      return;
     }
 
     try {
-      await generatePlan(userInput.value); //  Wait for AI response
-      isProcessing.value = false; //  Hide processing state
-      isModalOpen.value = false; //  Close modal AFTER tasks are generated
+      await generatePlan(userInput.value);
+      isProcessing.value = false;
+      isModalOpen.value = false;
     } catch (error) {
       console.error("Error generating plan:", error);
       isProcessing.value = false;
@@ -671,12 +671,12 @@ const handleClick = async () => {
 
 
 <template>
-  <div class="bg-mine text-white-600 pt-10 lg:pl-18 min-h-screen flex flex-col">
+  <div class="bg-mine text-white-600 pt-10 lg:pl-18 min-h-screen flex flex-col backdrop-blur-lg">
     <div class="container mx-auto mt-10 pb-10">
       <Navbar />
     </div>
     <div class="container mx-auto mt-10 flex-grow px-4"> 
-      <div class="bg-bine p-4 rounded-lg shadow-md">
+      <div class="bg-bine p-4 rounded-lg shadow-md backdrop-blur-lg">
         <form @submit.prevent="addTask">
           <div class="mb-4">
             <label class="block text-gray-700 text-sm font-bold mb-2" for="task">

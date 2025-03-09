@@ -59,7 +59,7 @@ const handleEmailSignUp = async (event) => {
 
 </script>
 <template>
-     <div class="h-screen bg-mine flex items-center justify-center pt-10 lg:pl-18">
+     <div class="h-screen bg-mine flex items-center justify-center pt-10 lg:pl-18 backdrop-blur-lg ">
        
         <div class="bg-mine  shadow-lg rounded-xl p-6 sm:p-8 max-w-sm sm:max-w-md w-full">
             <div class="ml-[116px]  pb-5">

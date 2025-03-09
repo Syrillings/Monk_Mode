@@ -1,12 +1,13 @@
-package app.vercel.monkmodeone;
+package app.vercel.monkmode;
 
 import android.os.Bundle; 
 import com.getcapacitor.BridgeActivity;
 import com.getcapacitor.community.speechrecognition.SpeechRecognition; 
+
 public class MainActivity extends BridgeActivity {
     @Override
-    public void onCreate(Bundle savedInstanceState) { // Now Bundle is recognized
+    public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        registerPlugin(SpeechRecognition.class); // ✅ Register the plugin
+        registerPlugin(SpeechRecognition.class);
     }
 }

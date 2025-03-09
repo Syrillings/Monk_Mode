@@ -24,7 +24,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div :key="key" class="container bg-mine text-white-600 pt-10 lg:pl-18">
+  <div :key="key" class="container bg-mine backdrop-blur-lg text-white-600 pt-10 lg:pl-18  ">
     <navbar />
     <div class="content">
       <div class="scrollable-content">
