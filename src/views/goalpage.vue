@@ -12,7 +12,6 @@ import Text from '/text.png';
 import { generateAIResponse } from "/src/Utils/GeminiAPI";
 import { SpeechRecognition } from "@capacitor-community/speech-recognition";
 import { LocalNotifications } from '@capacitor/local-notifications';
-//import { Alert } from '@capacitor/dialog';
 
 const db = getFirestore();
 const auth = getAuth();
@@ -29,9 +28,16 @@ const isRecording = ref(false);
 const isProcessing = ref(false);
 let recognition = null;
 
+const requestNotificationPermission = async () => {
+  const { granted } = await LocalNotifications.requestPermissions();
+  if (!granted) {
+    console.error('Notification permission not granted');
+  }
+};
+
 const scheduleNotification = async (task) => {
   const endTime = new Date(task.endTime);
-  const notificationTime = new Date(endTime.getTime() - 1 * 60 * 1000);
+  const notificationTime = new Date(endTime.getTime() - 1 * 60 * 1000); // 1 minute before end time
   const now = new Date();
 
   if (notificationTime > now) {
@@ -39,7 +45,7 @@ const scheduleNotification = async (task) => {
       notifications: [
         {
           id: Number(task.id.replace(/\D/g, "").slice(-6)),
-          title: `⏳ Task Ending Soon!`,
+          title: ` Task Ending Soon! ⏳`,
           body: `You have 1 minute left before "${task.name}". Ends at ${endTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}.`,
           schedule: { at: notificationTime },
           sound: 'default',
@@ -47,19 +53,20 @@ const scheduleNotification = async (task) => {
           largeIcon: 'notification',
           importance: 5,
           vibrate: [200, 100, 200],
-          foreground: true, 
+          foreground: true,
+          channelId: "TASK_NOTIFICATION_CHANNEL",
         },
       ],
     });
 
-    console.log(`🔔 Notification scheduled for task "${task.name}" at ${notificationTime}`);
+    console.log(`Notification scheduled for task "${task.name}" at ${notificationTime}`);
   } else {
-    console.log(`⏩ Skipped notification for task "${task.name}" because it's too close to current time.`);
+    console.log(`Skipped notification for task "${task.name}" because it's too close to current time.`);
   }
 };
 
 LocalNotifications.addListener('localNotificationReceived', async (notification) => {
-  console.log('📲 Notification received:', notification);
+  console.log(' Notification received:', notification);
 
 
   await LocalNotifications.schedule({
@@ -104,7 +111,7 @@ const toggleRecording = async () => {
 
     const waitForUserInput = async () => {
       let retries = 0;
-      while (!userInput.value?.trim() && retries < 50) { // 50 x 100ms = 5 seconds
+      while (!userInput.value?.trim() && retries < 50) { 
         await new Promise(resolve => setTimeout(resolve, 100));
         retries++;
       }
@@ -134,7 +141,7 @@ const useCapacitorSpeechRecognition = async () => {
 
   if (!isRecording.value) {
     try {
-      // Handle iOS permissions ONLY
+      
       if (Capacitor.getPlatform() === 'ios') {
         const hasPermission = await SpeechRecognition.hasPermission();
         if (!hasPermission.granted) {
@@ -148,10 +155,9 @@ const useCapacitorSpeechRecognition = async () => {
         language: 'en-US',
         maxResults: 3,
         partialResults: true,
-        popup: false, // iOS specific, ignored on Android
+        popup: false, // For iOS devices
       });
 
-      // Optional: Clear userInput at the start
       userInput.value = '';
 
       // Capture partial results for a live typing feel
@@ -161,7 +167,6 @@ const useCapacitorSpeechRecognition = async () => {
         }
       });
 
-      // Final results handler
       SpeechRecognition.addListener('result', (data) => {
         console.log('Final Result:', data);
         if (data.matches && data.matches.length > 0) {
@@ -188,21 +193,18 @@ const useCapacitorSpeechRecognition = async () => {
       isRecording.value = false;
     }
   } else {
-    // Stop Recording if already active
     await SpeechRecognition.stop();
     isRecording.value = false;
     console.log('SpeechRecognition Stopped');
   }
 };
 
-
-
 const useWebSpeechAPI = async () => {
   if (!isRecording.value) {
     if (!recognition) {
       recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-      recognition.continuous = true; // Keep listening until stopped
-      recognition.interimResults = true; // Show partial results
+      recognition.continuous = true; 
+      recognition.interimResults = true; 
       recognition.lang = "en-US";
 
       recognition.onresult = (event) => {
@@ -210,7 +212,7 @@ const useWebSpeechAPI = async () => {
         for (let i = 0; i < event.results.length; i++) {
           let transcript = event.results[i][0].transcript;
           if (event.results[i].isFinal) {
-            finalTranscript += transcript + " "; // Add only finalized words
+            finalTranscript += transcript + " "; 
           }
         }
         userInput.value = finalTranscript.trim();
@@ -252,7 +254,7 @@ const generatePlan = async (aiText) => {
     const now = new Date();
     let currentTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours(), now.getMinutes());
 
-    const aiTasks = await generateAIResponse(aiText); // Get AI-generated tasks
+    const aiTasks = await generateAIResponse(aiText); 
 
     if (aiTasks && Array.isArray(aiTasks)) {
       const newTasks = aiTasks.map((task, index) => {
@@ -260,7 +262,7 @@ const generatePlan = async (aiText) => {
         let start = new Date(currentTime);
         let end = new Date(start.getTime() + duration);
 
-        currentTime = new Date(end); // Move to the next available time slot
+        currentTime = new Date(end); 
 
         return {
           name: task.name,
@@ -305,7 +307,7 @@ const sanimateButton = () => {
 };
 
 const startTimeFormatted = (task) => computed(() =>
-  new Date(task.startTime).toISOString().substring(11, 16) // HH:MM format
+  new Date(task.startTime).toISOString().substring(11, 16) 
 );
 
 const endTimeFormatted = (task) => computed(() =>
@@ -314,10 +316,10 @@ const endTimeFormatted = (task) => computed(() =>
 
 const updateTaskOrder = async () => {
   state.tasks.forEach((task, index) => {
-    task.order = index; // Update the order based on the new index
+    task.order = index;
   });
 
-  // Save the new order to Firestore
+
   const user = auth.currentUser;
   if (user) {
     const updates = state.tasks.map(task => {
@@ -326,40 +328,37 @@ const updateTaskOrder = async () => {
     
     await Promise.all(updates)
       .then(() => {
-        console.log("✅ Task order updated in Firestore!");
+        console.log("Task order updated in Firestore!");
       })
       .catch(error => {
-        console.error("❌ Error updating task order in Firestore:", error);
+        console.error(" Error updating task order in Firestore:", error);
       });
   }
 };
 
-onMounted(() => {
-  // Load tasks from localStorage if available
+onMounted(async() => {
+  await requestNotificationPermission();
   const localTasks = localStorage.getItem('tasks');
   if (localTasks) {
     state.tasks = JSON.parse(localTasks);
   }
 
-  // Real-time update elapsed time
   const interval = setInterval(() => {
     updateElapsedTimes();
   }, 1000);
 
-  // Listen for authentication state changes
   const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
     if (user) {
-      await fetchTasks(); // Load fresh tasks from Firestore when user logs in
+      await fetchTasks(); 
     } else {
       state.tasks = [];
-      localStorage.removeItem('tasks'); // Clear tasks if user logs out
+      localStorage.removeItem('tasks'); ut
     }
   });
 
-  // Cleanup on component unmount
   onUnmounted(() => {
     clearInterval(interval);
-    unsubscribeAuth(); // Stop listening to auth changes
+    unsubscribeAuth(); 
   });
 });
 
@@ -384,7 +383,7 @@ const addTask = async () => {
     );
 
     if (end < start) {
-      end.setDate(end.getDate() + 1); // Handle overnight tasks
+      end.setDate(end.getDate() + 1); 
     }
 
     const task = {
@@ -405,13 +404,11 @@ const addTask = async () => {
         return;
       }
 
-      // Add to Firestore
       const docRef = await addDoc(
         collection(db, "users", user.uid, "tasks"),
         task
       );
 
-      // Assign the Firestore ID to the task object
       task.id = docRef.id;
 
       scheduleNotification(task);
@@ -434,17 +431,16 @@ const addTask = async () => {
 
 //This codebase is screwing my mental health.....Send help
 
-//saves the task's name when the user changes it
 const updateTaskName = (event, task) => {
   task.name = event.target.innerText;
   saveTaskName(task);
 };
 
 const saveTaskName = async (task) => {
-  // Save to localStorage
+  
   localStorage.setItem("tasks", JSON.stringify(state.tasks));
 
-  // Save to Firebase
+
   if (auth.currentUser) {
     const taskRef = doc(db, "users", auth.currentUser.uid, "tasks", task.id);
     try {
@@ -456,12 +452,12 @@ const saveTaskName = async (task) => {
   }
 };
 
-//Sends nely set time to firebase
+
 const updateTaskTime = async (index, type, newTime) => {
   if (!newTime) return;
 
   const task = state.tasks[index];
-  if (!task || !task.id) return; // Ensure task exists and has an ID
+  if (!task || !task.id) return;
 
   let [hours, minutes] = newTime.split(":").map(Number);
   
@@ -552,9 +548,8 @@ const loadTasks = async () => {
 
     const querySnapshot = await getDocs(collection(db, "users", user.uid, "tasks"));
 
-    // Convert Firebase documents to task objects
     state.tasks = querySnapshot.docs.map(doc => ({
-      id: doc.id, // Store Firebase document ID
+      id: doc.id,
       ...doc.data()
     }));
 
@@ -564,8 +559,6 @@ const loadTasks = async () => {
   }
 };
 
-
-// Call loadTasks() when the app starts
 loadTasks();
 
 onAuthStateChanged(auth, async (user) => {
@@ -586,10 +579,8 @@ const removeTask = async (index) => {
       console.log("Task deleted from Firestore:", taskToRemove.id);
     }
 
-    // Make a new array to trigger reactivity
     state.tasks = state.tasks.filter((_, i) => i !== index);
 
-    // Force Vue to update local state & storage
     localStorage.setItem("tasks", JSON.stringify(state.tasks));
     
     console.log("Task removed from UI and localStorage.");
@@ -646,31 +637,31 @@ const updateElapsedTimes = () => {
     }
   });
 
-  state.tasks = [...state.tasks]; // Trigger reactivity
+  state.tasks = [...state.tasks]; 
 };
 
 const isLoading = ref(false);
 
 const handleClick = async () => {
-  if (!aiText.value.trim()) return; // Prevent empty input
+  if (!aiText.value.trim()) return;
 
   sanimateButton();
-  isLoading.value = true; // Start loading spinner
+  isLoading.value = true; 
 
   try {
-    await generatePlan(aiText.value); // Wait for AI response
-    isModalOpen.value = false; // ✅ Close modal when tasks are generated
+    await generatePlan(aiText.value); 
+    isModalOpen.value = false; 
   } catch (error) {
     console.error("Error generating plan:", error);
   } finally {
-    isLoading.value = false; // Stop spinner
+    isLoading.value = false; 
   }
 };
 
 </script>
 
 
-<template>
+<template className="bg-mine backdrop-blur-lg">
   <div class="bg-mine text-white-600 pt-10 lg:pl-18 min-h-screen flex flex-col backdrop-blur-lg">
     <div class="container mx-auto mt-10 pb-10">
       <Navbar />
@@ -769,7 +760,7 @@ const handleClick = async () => {
       <span>
         <p class="font-bold text-sm" :class="element.isFading ? 'text-gray-500' : 'text-tine'">
           Allotted Time: 
-<!-- START TIME -->
+
 <span 
   v-if="!element.fromAI || !element.editingStartTime" 
   @click="element.fromAI ? (element.editingStartTime = true) : null"
@@ -891,3 +882,8 @@ const handleClick = async () => {
   <Bottom/>
 </template>
 
+<style scoped>
+.bg-mine {
+  background-color: #EAC4D5;
+}
+</style>

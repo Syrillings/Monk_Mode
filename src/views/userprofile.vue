@@ -105,9 +105,8 @@ const handleSignOut = async () => {
   <div class="h-screen bg-mine flex items-center justify-center px-4 sm:px-6">
     <div class="bg-mine shadow-lg rounded-3xl p-6 sm:p-12 max-w-md w-full backdrop-blur-lg ">
       
-      <!-- Profile Section -->
-      <div class="flex flex-col items-center mb-10">
-        <!-- Profile Image with Edit Button -->
+        <div class="flex flex-col items-center mb-10">
+      
         <div class="relative w-28 h-28 mb-4">
           <img
             :src="profilePicture || logo6"
@@ -129,13 +128,11 @@ const handleSignOut = async () => {
             <img :src="Camera" class="w-5 h-5" alt="Edit" />
           </button>
         </div>
-        
-        <!-- User Info -->
+
         <h2 class="font-openSans font-bold text-3xl sm:text-4xl text-tine mt-3">Welcome Back! 👋</h2>
         <p class="text-gray-600 font-roboto text-base sm:text-lg mt-1">{{ email }}</p>
       </div>
 
-      <!-- Profile Details -->
       <div class="space-y-6">
         <div class="bg-mine p-5 rounded-xl shadow-lg transition-all hover:shadow-2xl">
           <div class="flex justify-between items-center">
@@ -152,7 +149,6 @@ const handleSignOut = async () => {
         </div>
       </div>
 
-      <!-- Sign Out Button -->
       <button @click="handleSignOut" class="w-full bg-tine text-white font-semibold py-3 rounded-xl hover:bg-purple-600 transition-all duration-300 shadow-lg mt-10">
         Sign Out
       </button>
@@ -174,11 +170,6 @@ const handleSignOut = async () => {
   font-family: 'Roboto', sans-serif;
 }
 
-
-
-.bg-opacity-90 {
-  background-color: rgba(0, 0, 0, 0.1);
-}
 
 .shadow-xl {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
@@ -204,5 +195,9 @@ const handleSignOut = async () => {
 
 .rounded-3xl {
   border-radius: 1.5rem;
+}
+
+.bg-mine {
+  background-color: #EAC4D5;
 }
 </style>

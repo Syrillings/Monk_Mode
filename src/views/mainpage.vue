@@ -4,7 +4,7 @@ import { ref, onMounted } from 'vue';
 import { auth, onAuthStateChanged } from '../firebase';  // Make sure the path is correct
 import inspiration from '@/components/inspiration.vue';
 import navbar from '@/components/navbar.vue';
-import Bottom from '@/components/bottom.vue';
+import Footer from '@/components/bottom.vue';
 import stats from '@/components/stats.vue';
 import goalcard from '@/components/goalcard.vue';
 
@@ -23,21 +23,24 @@ onMounted(() => {
 });
 </script>
 
-<template>
+<template >
+   <navbar/>
   <div :key="key" class="container bg-mine backdrop-blur-lg text-white-600 pt-10 lg:pl-18  ">
-    <navbar />
-    <div class="content">
+   
+    <div class="content h-[calc(100vh-4rem)] overflow-y-auto">
       <div class="scrollable-content">
         <inspiration />
         <goalcard />
         <stats />
       </div>
     </div>
-    <Bottom />
+ 
   </div>
+  <Footer/>
 </template>
 
 <style scoped>
+
 .container {
   display: flex;
   flex-direction: column;
@@ -60,9 +63,8 @@ onMounted(() => {
   box-sizing: border-box;
 }
 
-.bg-mine {
-  background-color: #EAC4D5;
-}
+
+
 </style>
 
 <style scoped>
